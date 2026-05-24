@@ -1,54 +1,222 @@
-import { Difficulty, QuestionKey } from '@/lib/protocol'
-import type { Board, CharacterCard as CharacterCardType } from '@/lib/protocol'
-import { BoardGrid }      from '@/components/game/BoardGrid'
-import { TurnIndicator }  from '@/components/game/TurnIndicator'
-import { ActionPanel }    from '@/components/game/ActionPanel'
-import { GameLog }        from '@/components/game/GameLog'
-import type { LogEntry }  from '@/components/game/GameLog'
-import { Badge }          from '@/components/ui/Badge'
+'use client'
 
-// ─── Datos stub para visualización del skeleton ───────────────────────────────
-
-const STUB_CHARACTERS: CharacterCardType[] = [
-  { characterId:  '1', displayName: 'Ana',     attributes: [QuestionKey.HAS_BLONDE_HAIR, QuestionKey.HAS_BLUE_EYES] },
-  { characterId:  '2', displayName: 'Bruno',   attributes: [QuestionKey.HAS_BEARD] },
-  { characterId:  '3', displayName: 'Carmen',  attributes: [QuestionKey.USES_GLASSES, QuestionKey.HAS_EARRINGS] },
-  { characterId:  '4', displayName: 'Diego',   attributes: [QuestionKey.HAS_HAT, QuestionKey.HAS_BEARD] },
-  { characterId:  '5', displayName: 'Elena',   attributes: [QuestionKey.HAS_BLONDE_HAIR, QuestionKey.HAS_EARRINGS] },
-  { characterId:  '6', displayName: 'Felipe',  attributes: [QuestionKey.USES_GLASSES] },
-  { characterId:  '7', displayName: 'Gloria',  attributes: [QuestionKey.HAS_BLUE_EYES, QuestionKey.HAS_EARRINGS] },
-  { characterId:  '8', displayName: 'Héctor',  attributes: [QuestionKey.HAS_BEARD, QuestionKey.HAS_HAT] },
-  { characterId:  '9', displayName: 'Irene',   attributes: [QuestionKey.HAS_BLONDE_HAIR] },
-  { characterId: '10', displayName: 'Javier',  attributes: [QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD] },
-  { characterId: '11', displayName: 'Karen',   attributes: [QuestionKey.HAS_BLUE_EYES] },
-  { characterId: '12', displayName: 'Luis',    attributes: [QuestionKey.HAS_HAT] },
-]
-
-const STUB_BOARD: Board = { rows: 3, cols: 4, characters: STUB_CHARACTERS }
-
-const STUB_LOG: LogEntry[] = [
-  { type: 'event',    message: 'La partida ha comenzado.' },
-  { type: 'question', by: 'Oponente', key: QuestionKey.HAS_BEARD,       answer: true  },
-  { type: 'question', by: 'Tú',       key: QuestionKey.HAS_BLONDE_HAIR, answer: false },
-]
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
+import { use, useEffect, useMemo, useRef, useState } from 'react'
+import { BoardGrid } from '@/components/game/BoardGrid'
+import { TurnIndicator } from '@/components/game/TurnIndicator'
+import { ActionPanel } from '@/components/game/ActionPanel'
+import { GameLog } from '@/components/game/GameLog'
+import type { LogEntry } from '@/components/game/GameLog'
+import { Badge } from '@/components/ui/Badge'
+import { getPlayerId } from '@/lib/player'
+import { createWsClient, WsClient } from '@/lib/ws-client'
+import {
+  Board,
+  DifficultyWire,
+  fromWireDifficulty,
+  parseServerMessage,
+  QuestionKey,
+  ServerMessage,
+} from '@/lib/protocol'
 
 interface PageProps {
   params: Promise<{ gameId: string }>
 }
 
-export default async function GamePage({ params }: PageProps) {
-  const { gameId } = await params
+interface StoredGameSnapshot {
+  gameId: string
+  difficulty: DifficultyWire
+  board: Board
+  yourSecretCharacterId: string
+  firstTurnPlayerId: string
+  opponentType: 'human' | 'dummy'
+}
 
-  // Stub: en producción este estado vendrá del hook WebSocket
-  const isMyTurn          = true
-  const secretCharacterId = '5'
-  const eliminatedIds     = ['2', '8']
+function readStoredSnapshot(gameId: string): StoredGameSnapshot | null {
+  if (typeof window === 'undefined') return null
+  const raw = sessionStorage.getItem(`adivinaquien.game.${gameId}`)
+  if (!raw) return null
+  try {
+    return JSON.parse(raw) as StoredGameSnapshot
+  } catch {
+    return null
+  }
+}
+
+export default function GamePage({ params }: PageProps) {
+  const { gameId } = use(params)
+
+  const snapshot = useMemo(() => readStoredSnapshot(gameId), [gameId])
+  const playerIdRef = useRef<string>('')
+  const wsClientRef = useRef<WsClient | null>(null)
+
+  const [difficulty, setDifficulty] = useState<DifficultyWire>(snapshot?.difficulty ?? 'small')
+  const [board, setBoard] = useState<Board | null>(snapshot?.board ?? null)
+  const [secretCharacterId, setSecretCharacterId] = useState<string | null>(snapshot?.yourSecretCharacterId ?? null)
+  const [currentTurnPlayerId, setCurrentTurnPlayerId] = useState<string>(snapshot?.firstTurnPlayerId ?? '')
+  const [gameStatus, setGameStatus] = useState<'in_progress' | 'waiting' | 'finished' | 'abandoned'>('in_progress')
+  const [winnerPlayerId, setWinnerPlayerId] = useState<string | null>(null)
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error'>('connecting')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [logEntries, setLogEntries] = useState<LogEntry[]>([])
+
+  const myPlayerId = playerIdRef.current
+  const isMyTurn = !!myPlayerId && currentTurnPlayerId === myPlayerId
+
+  useEffect(() => {
+    playerIdRef.current = getPlayerId()
+
+    const client = createWsClient({
+      onOpen: () => {
+        setConnectionStatus('connected')
+        setErrorMessage(null)
+        client?.send({
+          type: 'reconnect_game',
+          payload: {
+            gameId,
+            playerId: playerIdRef.current,
+          },
+        })
+      },
+      onMessage: (raw) => {
+        const parsed = parseServerMessage(raw)
+        if (!parsed) return
+        handleEvent(parsed)
+      },
+      onClose: () => {
+        setConnectionStatus((prev) => (prev === 'error' ? prev : 'connecting'))
+      },
+      onError: () => {
+        setConnectionStatus('error')
+        setErrorMessage('La conexión con el backend falló.')
+      },
+    })
+
+    wsClientRef.current = client
+
+    function handleEvent(message: ServerMessage) {
+      if (message.type === 'turn_changed' && message.payload.gameId === gameId) {
+        setCurrentTurnPlayerId(message.payload.currentTurnPlayerId)
+        return
+      }
+
+      if (message.type === 'question_answered' && message.payload.gameId === gameId) {
+        const key = String(message.payload.questionKey).toUpperCase() as QuestionKey
+        const byMe = message.payload.playerId === playerIdRef.current
+        setLogEntries((prev) => [
+          ...prev,
+          {
+            type: 'question',
+            by: byMe ? 'Tú' : 'Oponente',
+            key,
+            answer: Boolean(message.payload.answer),
+          },
+        ])
+        return
+      }
+
+      if (message.type === 'guess_result' && message.payload.gameId === gameId) {
+        const byMe = message.payload.playerId === playerIdRef.current
+        const characterName = board?.characters.find((c) => c.characterId === message.payload.characterId)?.displayName
+          ?? message.payload.characterId
+
+        setLogEntries((prev) => [
+          ...prev,
+          {
+            type: 'guess',
+            by: byMe ? 'Tú' : 'Oponente',
+            characterName,
+            correct: Boolean(message.payload.correct),
+          },
+        ])
+        return
+      }
+
+      if (message.type === 'player_disconnected') {
+        const byMe = message.payload.playerId === playerIdRef.current
+        setLogEntries((prev) => [
+          ...prev,
+          {
+            type: 'event',
+            message: byMe
+              ? 'Tu conexión se perdió. Intentando reconectar…'
+              : 'Tu oponente se desconectó temporalmente.',
+          },
+        ])
+        return
+      }
+
+      if (message.type === 'game_finished' && message.payload.gameId === gameId) {
+        setGameStatus('finished')
+        setWinnerPlayerId(message.payload.winnerPlayerId)
+        setLogEntries((prev) => [
+          ...prev,
+          {
+            type: 'event',
+            message: message.payload.winnerPlayerId === playerIdRef.current
+              ? '¡Ganaste la partida!'
+              : 'La partida terminó. Ganó tu oponente.',
+          },
+        ])
+        return
+      }
+
+      if (message.type === 'reconnected' && message.payload.gameId === gameId) {
+        setCurrentTurnPlayerId(message.payload.currentTurnPlayerId)
+        setGameStatus(message.payload.status)
+        return
+      }
+
+      if (message.type === 'invalid_action') {
+        setErrorMessage(message.payload.reason)
+        return
+      }
+
+      if (message.type === 'error') {
+        setErrorMessage(message.payload.reason)
+      }
+    }
+
+    return () => {
+      wsClientRef.current?.close()
+      wsClientRef.current = null
+    }
+  }, [gameId])
+
+  function sendAskQuestion(questionKey: QuestionKey) {
+    wsClientRef.current?.send({
+      type: 'ask_question',
+      payload: {
+        gameId,
+        playerId: playerIdRef.current,
+        questionKey,
+      },
+    })
+  }
+
+  function sendGuessCharacter(characterId: string) {
+    wsClientRef.current?.send({
+      type: 'guess_character',
+      payload: {
+        gameId,
+        playerId: playerIdRef.current,
+        characterId,
+      },
+    })
+  }
+
+  if (!board || !secretCharacterId) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center gap-3 text-center">
+        <h1 className="text-2xl font-bold text-slate-100">No hay estado de partida cargado</h1>
+        <p className="max-w-md text-sm text-slate-400">
+          Abre primero la cola para recibir game_started y luego entrar en esta ruta.
+        </p>
+      </main>
+    )
+  }
 
   return (
     <main className="py-6 sm:py-8 lg:py-10">
-      {/* ── Header ─────────────────────────────────────────────────────── */}
       <header className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-100 sm:text-2xl">Adivina Quién</h1>
@@ -56,50 +224,53 @@ export default async function GamePage({ params }: PageProps) {
             Partida:{' '}
             <span className="font-mono text-slate-400">{gameId}</span>
           </p>
+          <p className="text-xs text-slate-500">Conexión: {connectionStatus}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Badge variant="info">Dificultad: Pequeño</Badge>
-          <Badge variant="success">En progreso</Badge>
+          <Badge variant="info">Dificultad: {difficulty}</Badge>
+          <Badge variant={gameStatus === 'finished' ? 'warning' : 'success'}>
+            {gameStatus === 'finished' ? 'Finalizada' : 'En progreso'}
+          </Badge>
+          {winnerPlayerId && (
+            <Badge variant={winnerPlayerId === myPlayerId ? 'success' : 'danger'}>
+              {winnerPlayerId === myPlayerId ? 'Ganaste' : 'Perdiste'}
+            </Badge>
+          )}
         </div>
       </header>
 
-      {/* ── Turn indicator ─────────────────────────────────────────────── */}
-      <TurnIndicator
-        isMyTurn={isMyTurn}
-        opponentName="Oponente"
-        className="mb-6"
-      />
+      {errorMessage && (
+        <div className="mb-4 rounded-xl border border-red-700 bg-red-900/20 px-4 py-2 text-sm text-red-300">
+          {errorMessage}
+        </div>
+      )}
 
-      {/*
-       * ── Layout principal ──────────────────────────────────────────────
-       * Mobile:   columna única → tablero arriba, panel lateral abajo
-       * lg+:      dos columnas  → tablero | panel lateral fijo
-       */}
+      <TurnIndicator isMyTurn={isMyTurn} opponentName="Oponente" className="mb-6" />
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px] lg:items-start">
-
-        {/* Tablero */}
         <section>
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
             Tu tablero
           </h2>
           <BoardGrid
-            board={STUB_BOARD}
-            difficulty={Difficulty.SMALL}
+            board={board}
+            difficulty={fromWireDifficulty(difficulty)}
             secretCharacterId={secretCharacterId}
-            eliminatedIds={eliminatedIds}
+            eliminatedIds={[]}
           />
         </section>
 
-        {/* Panel lateral: acción + historial */}
         <aside className="flex flex-col gap-4 lg:sticky lg:top-6">
           <ActionPanel
-            isMyTurn={isMyTurn}
-            opponentCharacterOptions={STUB_CHARACTERS.map(({ characterId, displayName }) => ({
+            isMyTurn={isMyTurn && gameStatus === 'in_progress'}
+            opponentCharacterOptions={board.characters.map(({ characterId, displayName }) => ({
               characterId,
               displayName,
             }))}
+            onAskQuestion={sendAskQuestion}
+            onGuessCharacter={sendGuessCharacter}
           />
-          <GameLog entries={STUB_LOG} />
+          <GameLog entries={logEntries} />
         </aside>
       </div>
     </main>

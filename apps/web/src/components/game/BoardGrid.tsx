@@ -1,6 +1,6 @@
 'use client'
 
-import { Board, Difficulty } from '@/lib/protocol'
+import { Board, Difficulty, DifficultyWire } from '@/lib/protocol'
 import { CharacterCard } from './CharacterCard'
 import { cn } from '@/lib/utils'
 
@@ -18,7 +18,7 @@ const GRID_COLS: Record<Difficulty, string> = {
 
 interface BoardGridProps {
   board:              Board
-  difficulty:         Difficulty
+  difficulty:         Difficulty | DifficultyWire
   /** IDs de personajes eliminados (ya no visibles) */
   eliminatedIds?:     string[]
   /** ID del personaje secreto del jugador local */
@@ -39,9 +39,10 @@ export function BoardGrid({
   onSelect,
 }: BoardGridProps) {
   const eliminatedSet = new Set(eliminatedIds)
+  const normalizedDifficulty = String(difficulty).toUpperCase() as Difficulty
 
   return (
-    <div className={cn('grid gap-2 sm:gap-3', GRID_COLS[difficulty])}>
+    <div className={cn('grid gap-2 sm:gap-3', GRID_COLS[normalizedDifficulty] ?? GRID_COLS[Difficulty.SMALL])}>
       {board.characters.map((character) => {
         const isEliminated = eliminatedSet.has(character.characterId)
         const handleClick =

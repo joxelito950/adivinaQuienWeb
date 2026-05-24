@@ -4,6 +4,15 @@ import { use, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Spinner } from '@/components/ui/Spinner'
 import { Button } from '@/components/ui/Button'
+import { getPlayerId } from '@/lib/player'
+import { createWsClient, WsClient } from '@/lib/ws-client'
+import {
+  DifficultyWire,
+  GameStartedEvent,
+  parseServerMessage,
+  QueueWaitingEvent,
+  ServerMessage,
+} from '@/lib/protocol'
 
 const MATCH_TIMEOUT = 60
 
@@ -21,9 +30,12 @@ export default function QueuePage({ params }: PageProps) {
   const { difficulty } = use(params)
   const router         = useRouter()
   const meta           = DIFFICULTY_META[difficulty] ?? { label: difficulty, grid: '?' }
+  const wireDifficulty = (difficulty.toLowerCase() as DifficultyWire)
 
   const [secondsLeft, setSecondsLeft] = useState(MATCH_TIMEOUT)
   const [phase, setPhase]             = useState<'searching' | 'dummy'>('searching')
+  const [status, setStatus]           = useState<'connecting' | 'connected' | 'error'>('connecting')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   useEffect(() => {
     if (secondsLeft <= 0) {
@@ -33,6 +45,74 @@ export default function QueuePage({ params }: PageProps) {
     const t = setTimeout(() => setSecondsLeft((s) => s - 1), 1000)
     return () => clearTimeout(t)
   }, [secondsLeft])
+
+  useEffect(() => {
+    const playerId = getPlayerId()
+    let client: WsClient | null = null
+
+    function handleEvent(message: ServerMessage) {
+      if (message.type === 'queue_waiting') {
+        const event = message as QueueWaitingEvent
+        setSecondsLeft(event.payload.timeoutSeconds ?? MATCH_TIMEOUT)
+        setPhase('searching')
+        return
+      }
+
+      if (message.type === 'game_started') {
+        const event = message as GameStartedEvent
+        sessionStorage.setItem(
+          `adivinaquien.game.${event.payload.gameId}`,
+          JSON.stringify(event.payload),
+        )
+        router.push(`/game/${event.payload.gameId}`)
+        return
+      }
+
+      if (message.type === 'invalid_action') {
+        setErrorMessage(message.payload.reason)
+        return
+      }
+
+      if (message.type === 'error') {
+        setErrorMessage(message.payload.reason)
+      }
+    }
+
+    client = createWsClient({
+      onOpen: () => {
+        setStatus('connected')
+        setErrorMessage(null)
+        client?.send({
+          type: 'join_queue',
+          payload: {
+            playerId,
+            difficulty: wireDifficulty,
+          },
+        })
+      },
+      onMessage: (raw) => {
+        const parsed = parseServerMessage(raw)
+        if (!parsed) return
+        handleEvent(parsed)
+      },
+      onError: () => {
+        setStatus('error')
+        setErrorMessage('No se pudo establecer la conexión WebSocket.')
+      },
+      onClose: () => {
+        setStatus((prev) => (prev === 'error' ? prev : 'connecting'))
+      },
+    })
+
+    return () => {
+      client?.send({ type: 'leave_queue', payload: { playerId } })
+      client?.close()
+    }
+  }, [router, wireDifficulty])
+
+  function handleCancel() {
+    router.push('/')
+  }
 
   const progress   = secondsLeft / MATCH_TIMEOUT
   const circumference = 2 * Math.PI * 42
@@ -74,12 +154,20 @@ export default function QueuePage({ params }: PageProps) {
         <h1 className="text-2xl font-bold text-slate-100 sm:text-3xl">
           {phase === 'searching' ? 'Buscando oponente…' : 'Sin oponente encontrado'}
         </h1>
+        <p className="text-xs text-slate-500">
+          Estado de conexión: {status === 'connected' ? 'Conectado' : status === 'error' ? 'Error' : 'Conectando'}
+        </p>
         <p className="text-slate-400">
           Dificultad:{' '}
           <span className="font-semibold text-slate-200">{meta.label}</span>
           {' · '}
           <span className="text-slate-400">{meta.grid} tablero</span>
         </p>
+        {errorMessage && (
+          <p className="mt-1 rounded-xl border border-red-700 bg-red-900/20 px-4 py-2 text-sm text-red-300">
+            {errorMessage}
+          </p>
+        )}
         {phase === 'dummy' && (
           <p className="mt-1 rounded-xl border border-amber-700 bg-amber-900/20 px-4 py-2 text-sm text-amber-300">
             Iniciando partida contra la IA…
@@ -89,7 +177,7 @@ export default function QueuePage({ params }: PageProps) {
 
       {phase === 'searching' && <Spinner size="lg" />}
 
-      <Button variant="ghost" onClick={() => router.push('/')}>
+      <Button variant="ghost" onClick={handleCancel}>
         Cancelar y volver al menú
       </Button>
     </main>

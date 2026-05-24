@@ -7,6 +7,8 @@ export enum Difficulty {
   LARGE  = 'LARGE',
 }
 
+export type DifficultyWire = 'small' | 'medium' | 'large'
+
 export enum QuestionKey {
   USES_GLASSES    = 'USES_GLASSES',
   HAS_BEARD       = 'HAS_BEARD',
@@ -33,7 +35,7 @@ export enum PlayerType {
 export interface CharacterCard {
   characterId: string
   displayName:  string
-  attributes:   QuestionKey[]
+  attributes?:  QuestionKey[]
 }
 
 export interface Board {
@@ -59,11 +61,11 @@ export interface WireMessage<T extends string, P> {
 
 // ─── Client → Server commands ─────────────────────────────────────────────────
 
-export type JoinQueueCommand      = WireMessage<'join_queue',      { difficulty: string }>
-export type LeaveQueueCommand     = WireMessage<'leave_queue',     Record<string, never>>
-export type AskQuestionCommand    = WireMessage<'ask_question',    { questionKey: string }>
-export type GuessCharacterCommand = WireMessage<'guess_character', { characterId: string }>
-export type ReconnectGameCommand  = WireMessage<'reconnect_game',  { gameId: string }>
+export type JoinQueueCommand      = WireMessage<'join_queue',      { playerId: string; difficulty: string }>
+export type LeaveQueueCommand     = WireMessage<'leave_queue',     { playerId: string }>
+export type AskQuestionCommand    = WireMessage<'ask_question',    { gameId: string; playerId: string; questionKey: string }>
+export type GuessCharacterCommand = WireMessage<'guess_character', { gameId: string; playerId: string; characterId: string }>
+export type ReconnectGameCommand  = WireMessage<'reconnect_game',  { gameId: string; playerId: string }>
 export type PingCommand           = WireMessage<'ping',            Record<string, never>>
 
 export type ClientMessage =
@@ -77,38 +79,39 @@ export type ClientMessage =
 // ─── Server → Client events ───────────────────────────────────────────────────
 
 export type QueueJoinedEvent = WireMessage<'queue_joined', {
-  playerId:   string
-  difficulty: string
+  difficulty: DifficultyWire
 }>
 
 export type QueueWaitingEvent = WireMessage<'queue_waiting', {
-  playerId:   string
-  difficulty: string
+  timeoutSeconds: number
 }>
 
 export type GameStartedEvent = WireMessage<'game_started', {
-  gameId:              string
-  difficulty:          Difficulty
-  board:               Board
-  secretCharacterId:   string
-  currentTurnPlayerId: string
-  yourPlayerId:        string
+  gameId:                string
+  difficulty:            DifficultyWire
+  opponentType:          'human' | 'dummy'
+  board:                 Board
+  yourSecretCharacterId: string
+  firstTurnPlayerId:     string
 }>
 
 export type TurnChangedEvent = WireMessage<'turn_changed', {
+  gameId: string
   currentTurnPlayerId: string
 }>
 
 export type QuestionAnsweredEvent = WireMessage<'question_answered', {
+  gameId:           string
+  playerId:         string
   questionKey:     string
   answer:          boolean
-  askedByPlayerId: string
 }>
 
 export type GuessResultEvent = WireMessage<'guess_result', {
+  gameId:             string
+  playerId:           string
   characterId:       string
   correct:           boolean
-  guessedByPlayerId: string
 }>
 
 export type InvalidActionEvent = WireMessage<'invalid_action', {
@@ -116,25 +119,31 @@ export type InvalidActionEvent = WireMessage<'invalid_action', {
 }>
 
 export type PlayerDisconnectedEvent = WireMessage<'player_disconnected', {
-  playerId:               string
-  reconnectWindowSeconds: number
+  playerId: string
+  at:       string
 }>
 
 export type GameFinishedEvent = WireMessage<'game_finished', {
-  winnerId: string
-  reason:   string
+  gameId:         string
+  winnerPlayerId: string
 }>
 
 export type ReconnectedEvent = WireMessage<'reconnected', {
-  gameId:              string
-  board:               Board
-  secretCharacterId:   string
+  gameId: string
   currentTurnPlayerId: string
+  status: 'waiting' | 'in_progress' | 'finished' | 'abandoned'
 }>
 
 export type ErrorEvent = WireMessage<'error', {
-  message: string
-  code?:   string
+  reason: string
+}>
+
+export type QueueLeftEvent = WireMessage<'queue_left', {
+  playerId: string
+}>
+
+export type PongEvent = WireMessage<'pong', {
+  ts: string
 }>
 
 export type ServerMessage =
@@ -148,4 +157,30 @@ export type ServerMessage =
   | PlayerDisconnectedEvent
   | GameFinishedEvent
   | ReconnectedEvent
+  | QueueLeftEvent
+  | PongEvent
   | ErrorEvent
+
+export function toWireDifficulty(value: Difficulty): DifficultyWire {
+  return value.toLowerCase() as DifficultyWire
+}
+
+export function fromWireDifficulty(value: string): Difficulty {
+  const upper = value.trim().toUpperCase() as keyof typeof Difficulty
+  return Difficulty[upper] ?? Difficulty.SMALL
+}
+
+export function parseServerMessage(raw: string): ServerMessage | null {
+  try {
+    const parsed = JSON.parse(raw) as { type?: unknown; payload?: unknown; correlationId?: unknown }
+    if (typeof parsed !== 'object' || parsed === null) return null
+    if (typeof parsed.type !== 'string') return null
+    return {
+      type: parsed.type,
+      payload: (parsed.payload ?? {}) as Record<string, unknown>,
+      correlationId: typeof parsed.correlationId === 'string' ? parsed.correlationId : undefined,
+    } as ServerMessage
+  } catch {
+    return null
+  }
+}

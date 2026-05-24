@@ -32,6 +32,7 @@ export function CharacterCard({
   isSelected = false,
   onClick,
 }: CharacterCardProps) {
+  const attributes = character.attributes ?? []
   const color   = avatarColor(character.displayName)
   const initial = character.displayName.charAt(0).toUpperCase()
   const Tag     = onClick ? 'button' : 'div'
@@ -68,9 +69,9 @@ export function CharacterCard({
       </span>
 
       {/* Attribute badges — solo en sm+ para no saturar mobile */}
-      {!isEliminated && character.attributes.length > 0 && (
+      {!isEliminated && attributes.length > 0 && (
         <div className="hidden flex-wrap justify-center gap-0.5 sm:flex">
-          {character.attributes.map((attr) => (
+          {attributes.map((attr) => (
             <AttributeBadge key={attr} attribute={attr} showLabel={false} />
           ))}
         </div>
