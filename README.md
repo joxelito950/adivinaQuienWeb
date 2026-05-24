@@ -85,6 +85,67 @@ Reglas de tablero:
 
 Motivo: el backend con WebSocket persistente debe ejecutarse en un servidor dedicado para sesiones en tiempo real.
 
+### 3.3 Estado de implementacion (Mayo 2026)
+
+- Frontend web conectado por WebSocket al backend para cola y partida.
+- UI responsive habilitada en mobile/tablet/desktop.
+- Tests unitarios base en frontend (protocolo, player id, ws client).
+
+Pendientes de cierre para produccion:
+
+- Seguridad de WebSocket (origenes y autenticacion de jugador).
+- Pipeline CI/CD para build + test + deploy.
+- Estrategia de observabilidad y alertas.
+
+## 3.4 Checklist de despliegue
+
+### Frontend (Next.js)
+
+- [ ] Configurar `NEXT_PUBLIC_WS_URL` con `wss://` al backend productivo.
+- [ ] Build de produccion sin warnings criticos.
+- [ ] Test unitarios y smoke test de flujo principal en CI.
+- [ ] Configurar dominio, HTTPS y politicas de cache para assets.
+
+### Backend (Spring Boot + WebSocket)
+
+- [ ] Restringir `allowedOrigins` a dominios oficiales.
+- [ ] Parametrizar y validar `SERVER_PORT`, `MATCH_TIMEOUT_SECONDS`, `RECONNECT_TIMEOUT_SECONDS`.
+- [ ] Exponer health checks y logs estructurados.
+- [ ] Definir politica de escalado para sesiones persistentes.
+
+### Operacion
+
+- [ ] Configurar secretos y variables por ambiente (dev/staging/prod).
+- [ ] Definir rollback rapido de frontend y backend.
+- [ ] Definir tablero de monitoreo (latencia WS, errores, partidas activas).
+
+## 3.5 Plan para integrar imagenes de personajes
+
+### Objetivo
+
+Mostrar imagen real por personaje en el tablero manteniendo compatibilidad con clientes actuales.
+
+### Estrategia recomendada por fases
+
+1. Fase 1 (rapida): catalogo local en frontend por `characterId`.
+2. Fase 2 (escalable): backend agrega `imageUrl` opcional en `game_started.board.characters[]`.
+
+### Requisitos tecnicos
+
+- Definir identificador estable (`characterId`) y naming de assets.
+- Formato recomendado: `webp`; fallback `png`.
+- Peso objetivo por imagen: < 100KB.
+- Fallback visual (avatar inicial) cuando imagen no disponible.
+- Texto alternativo accesible por personaje.
+
+### Tareas pendientes para cerrar imagenes
+
+- [ ] Recopilar o disenar set final de personajes.
+- [ ] Normalizar tamanos y recortes de imagen.
+- [ ] Publicar assets (frontend public o CDN).
+- [ ] Actualizar UI (`CharacterCard`) para priorizar imagen y fallback.
+- [ ] Validar rendimiento en mobile (LCP/CLS) tras incorporar imagenes.
+
 ## 4. Modelo de dominio
 
 Entidades sugeridas:
