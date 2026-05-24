@@ -13,10 +13,10 @@ export interface WsHandlers {
   onError?: (event: Event) => void
 }
 
-export function createWsClient(handlers: WsHandlers = {}): WsClient | null {
-  if (typeof window === 'undefined') return null
+export function createWsClient(handlers: WsHandlers = {}, url?: string): WsClient | null {
+  if (typeof window === 'undefined' || typeof WebSocket === 'undefined') return null
 
-  const wsUrl = process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:8080/ws'
+  const wsUrl = url ?? process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:8080/ws'
   const socket = new WebSocket(wsUrl)
 
   if (handlers.onOpen) {

@@ -175,9 +175,12 @@ export function parseServerMessage(raw: string): ServerMessage | null {
     const parsed = JSON.parse(raw) as { type?: unknown; payload?: unknown; correlationId?: unknown }
     if (typeof parsed !== 'object' || parsed === null) return null
     if (typeof parsed.type !== 'string') return null
+    const payload = typeof parsed.payload === 'object' && parsed.payload !== null
+      ? parsed.payload
+      : {}
     return {
       type: parsed.type,
-      payload: (parsed.payload ?? {}) as Record<string, unknown>,
+      payload: payload as Record<string, unknown>,
       correlationId: typeof parsed.correlationId === 'string' ? parsed.correlationId : undefined,
     } as ServerMessage
   } catch {
