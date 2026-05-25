@@ -232,6 +232,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                     Map<String, Object> data = new HashMap<>();
                     data.put(CHARACTER_ID, card.characterId());
                     data.put("displayName", card.displayName());
+                    data.put("imageUrl", card.imageUrl());
                     return data;
                 })
                 .toList();

@@ -50,4 +50,32 @@ describe('protocol helpers', () => {
     const parsed = parseServerMessage(JSON.stringify({ type: 'pong', payload: 'text' }))
     expect(parsed?.payload).toEqual({})
   })
+
+  it('keeps imageUrl in game_started board characters', () => {
+    const raw = JSON.stringify({
+      type: 'game_started',
+      payload: {
+        gameId: 'g-1',
+        difficulty: 'small',
+        opponentType: 'human',
+        board: {
+          rows: 3,
+          cols: 4,
+          characters: [
+            {
+              characterId: 'char-1',
+              displayName: 'Character 1',
+              imageUrl: '/characters/png/chica-01.png',
+            },
+          ],
+        },
+        yourSecretCharacterId: 'char-1',
+        firstTurnPlayerId: 'p1',
+      },
+    })
+
+    const parsed = parseServerMessage(raw)
+    const payload = parsed?.payload as { board?: { characters?: Array<{ imageUrl?: string }> } }
+    expect(payload.board?.characters?.[0]?.imageUrl).toBe('/characters/png/chica-01.png')
+  })
 })

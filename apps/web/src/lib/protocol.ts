@@ -35,6 +35,7 @@ export enum PlayerType {
 export interface CharacterCard {
   characterId: string
   displayName:  string
+  imageUrl?:    string
   attributes?:  QuestionKey[]
 }
 

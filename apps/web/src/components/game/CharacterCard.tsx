@@ -1,5 +1,7 @@
 'use client'
 
+import Image from 'next/image'
+import { useState } from 'react'
 import { CharacterCard as CharacterCardType } from '@/lib/protocol'
 import { AttributeBadge } from '@/components/ui/Badge'
 import { cn } from '@/lib/utils'
@@ -32,9 +34,12 @@ export function CharacterCard({
   isSelected = false,
   onClick,
 }: CharacterCardProps) {
+  const [imageFailed, setImageFailed] = useState(false)
   const attributes = character.attributes ?? []
   const color   = avatarColor(character.displayName)
   const initial = character.displayName.charAt(0).toUpperCase()
+  const imageUrl = character.imageUrl
+  const shouldShowImage = Boolean(imageUrl) && !imageFailed
   const Tag     = onClick ? 'button' : 'div'
 
   return (
@@ -55,12 +60,23 @@ export function CharacterCard({
       {/* Avatar */}
       <div
         className={cn(
-          'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base font-bold text-white',
+          'relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full text-base font-bold text-white',
           'sm:h-12 sm:w-12 sm:text-lg',
-          color,
+          !shouldShowImage && color,
         )}
       >
-        {initial}
+        {shouldShowImage ? (
+          <Image
+            src={imageUrl!}
+            alt={character.displayName}
+            fill
+            sizes="(max-width: 640px) 36px, 48px"
+            className="object-cover"
+            onError={() => setImageFailed(true)}
+          />
+        ) : (
+          initial
+        )}
       </div>
 
       {/* Name */}
