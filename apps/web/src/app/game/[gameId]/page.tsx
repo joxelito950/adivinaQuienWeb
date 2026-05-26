@@ -1,12 +1,14 @@
 'use client'
 
 import { use, useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { BoardGrid } from '@/components/game/BoardGrid'
 import { TurnIndicator } from '@/components/game/TurnIndicator'
 import { ActionPanel, ActionTab } from '@/components/game/ActionPanel'
 import { GameLog } from '@/components/game/GameLog'
 import type { LogEntry } from '@/components/game/GameLog'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
 import { getPlayerId } from '@/lib/player'
 import { QUESTION_LABELS } from '@/lib/questions'
 import { createWsClient, WsClient } from '@/lib/ws-client'
@@ -58,6 +60,7 @@ function readStoredSnapshot(gameId: string): StoredGameSnapshot | null {
 
 export default function GamePage({ params }: PageProps) {
   const { gameId } = use(params)
+  const router = useRouter()
 
   const snapshot = useMemo(() => readStoredSnapshot(gameId), [gameId])
   const playerIdRef = useRef<string>('')
@@ -376,6 +379,23 @@ export default function GamePage({ params }: PageProps) {
         note={turnIndicatorNote}
         className="mb-6"
       />
+
+      {isGameFinished && (
+        <section className="mb-6 rounded-2xl border border-brand-700/50 bg-brand-900/20 p-4">
+          <h2 className="text-sm font-semibold text-brand-200">Partida finalizada</h2>
+          <p className="mt-1 text-sm text-brand-100/90">
+            Puedes volver al inicio para comenzar una nueva partida.
+          </p>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Button onClick={() => router.push('/')}>
+              Ir al inicio
+            </Button>
+            <Button variant="secondary" onClick={() => router.push('/')}>
+              Jugar otra partida
+            </Button>
+          </div>
+        </section>
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px] lg:items-start">
         <section>
