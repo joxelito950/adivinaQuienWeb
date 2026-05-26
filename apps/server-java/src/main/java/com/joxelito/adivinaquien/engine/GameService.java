@@ -15,11 +15,13 @@ import com.joxelito.adivinaquien.matchmaking.MatchStarted;
 import jakarta.annotation.PreDestroy;
 import org.springframework.stereotype.Service;
 
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -35,6 +37,7 @@ public class GameService {
     private final long reconnectTimeoutSeconds;
     private final long questionResponseTimeoutSeconds;
     private final ScheduledExecutorService scheduler;
+    private final Random random;
 
     private final Map<String, GameSession> gameById = new ConcurrentHashMap<>();
     private final Map<String, String> gameIdByPlayer = new ConcurrentHashMap<>();
@@ -47,6 +50,7 @@ public class GameService {
         this.reconnectTimeoutSeconds = appProperties.getReconnectTimeoutSeconds();
         this.questionResponseTimeoutSeconds = appProperties.getQuestionResponseTimeoutSeconds();
         this.scheduler = Executors.newSingleThreadScheduledExecutor();
+        this.random = new SecureRandom();
     }
 
     public GameSession createFromMatch(MatchStarted matchStarted) {
@@ -65,11 +69,13 @@ public class GameService {
         );
 
         List<CharacterCard> cards = board.characters();
-        String p1Secret = cards.getFirst().characterId();
-        String p2Secret = cards.getLast().characterId();
-        if (p1Secret.equals(p2Secret) && cards.size() > 1) {
-            p2Secret = cards.get(1).characterId();
+        int p1SecretIndex = random.nextInt(cards.size());
+        int p2SecretIndex = random.nextInt(cards.size() - 1);
+        if (p2SecretIndex >= p1SecretIndex) {
+            p2SecretIndex++;
         }
+        String p1Secret = cards.get(p1SecretIndex).characterId();
+        String p2Secret = cards.get(p2SecretIndex).characterId();
 
         String gameId = "g-" + UUID.randomUUID();
         GameSession gameSession = new GameSession(
