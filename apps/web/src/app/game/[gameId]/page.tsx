@@ -92,7 +92,8 @@ export default function GamePage({ params }: PageProps) {
   const [selectedGuessCharacterId, setSelectedGuessCharacterId] = useState<string | null>(null)
 
   const myPlayerId = playerIdRef.current
-  const isMyTurn = !!myPlayerId && currentTurnPlayerId === myPlayerId
+  const isGameFinished = gameStatus === 'finished'
+  const isMyTurn = !isGameFinished && !!myPlayerId && currentTurnPlayerId === myPlayerId
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -195,8 +196,17 @@ export default function GamePage({ params }: PageProps) {
             correct: Boolean(message.payload.correct),
           },
         ])
-        setSelectedGuessCharacterId(null)
-        setActiveTab('question')
+
+        if (message.payload.correct) {
+          setGameStatus('finished')
+          setWinnerPlayerId(message.payload.playerId)
+          setCurrentTurnPlayerId('')
+          setPendingQuestion(null)
+          setSelectedGuessCharacterId(message.payload.characterId)
+        } else {
+          setSelectedGuessCharacterId(null)
+          setActiveTab('question')
+        }
         return
       }
 
@@ -230,6 +240,8 @@ export default function GamePage({ params }: PageProps) {
       if (message.type === 'game_finished' && message.payload.gameId === gameId) {
         setGameStatus('finished')
         setWinnerPlayerId(message.payload.winnerPlayerId)
+        setCurrentTurnPlayerId('')
+        setPendingQuestion(null)
         setLogEntries((prev) => [
           ...prev,
           {
@@ -331,6 +343,14 @@ export default function GamePage({ params }: PageProps) {
         : `Oponente preguntó: ${QUESTION_LABELS[latestOpponentQuestion.key]}. ${latestOpponentQuestion.timeoutFallback ? 'Respuesta automática por timeout' : 'Respuesta manual'}: ${latestOpponentQuestion.answer ? 'Sí' : 'No'}.`
       : null
 
+  const turnIndicatorNote = isGameFinished
+    ? winnerPlayerId
+      ? winnerPlayerId === myPlayerId
+        ? 'Puedes revisar el historial para ver la jugada final.'
+        : 'La jugada final quedó registrada en el historial.'
+      : null
+    : opponentQuestionNote
+
   return (
     <main className="py-6 sm:py-8 lg:py-10">
       <header className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -361,7 +381,14 @@ export default function GamePage({ params }: PageProps) {
         </div>
       )}
 
-      <TurnIndicator isMyTurn={isMyTurn} opponentName="Oponente" note={opponentQuestionNote} className="mb-6" />
+      <TurnIndicator
+        isMyTurn={isMyTurn}
+        isFinished={isGameFinished}
+        didIWin={winnerPlayerId === myPlayerId}
+        opponentName="Oponente"
+        note={turnIndicatorNote}
+        className="mb-6"
+      />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px] lg:items-start">
         <section>
