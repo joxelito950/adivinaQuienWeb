@@ -24,7 +24,10 @@ class QuestionPolicyTest {
         assertTrue(active.contains(QuestionKey.HAS_BEARD));
         assertTrue(active.contains(QuestionKey.HAS_HAT));
         assertTrue(active.contains(QuestionKey.HAS_BLONDE_HAIR));
-        assertTrue(active.contains(QuestionKey.HAS_BLUE_EYES));
+        assertTrue(active.contains(QuestionKey.HAS_LONG_HAIR));
+        assertTrue(active.contains(QuestionKey.HAS_SHORT_HAIR));
+        assertTrue(active.contains(QuestionKey.HAS_STRAIGHT_HAIR));
+        assertTrue(active.contains(QuestionKey.HAS_CURLY_HAIR));
         assertTrue(active.contains(QuestionKey.HAS_EARRINGS));
         assertTrue(active.contains(QuestionKey.IS_MALE));
         assertTrue(active.contains(QuestionKey.IS_FEMALE));

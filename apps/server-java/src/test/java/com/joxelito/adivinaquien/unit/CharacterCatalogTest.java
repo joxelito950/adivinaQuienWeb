@@ -47,12 +47,15 @@ class CharacterCatalogTest {
                 .orElseThrow();
         assertTrue(chica01.attributes().contains(QuestionKey.USES_GLASSES));
         assertTrue(chica01.attributes().contains(QuestionKey.IS_FEMALE));
+        assertTrue(chica01.attributes().contains(QuestionKey.HAS_LONG_HAIR));
+        assertTrue(chica01.attributes().contains(QuestionKey.HAS_STRAIGHT_HAIR));
 
         var chica27 = cards.stream()
                 .filter(card -> "/characters/png/chica-27.png".equals(card.imageUrl()))
                 .findFirst()
                 .orElseThrow();
         assertTrue(chica27.attributes().contains(QuestionKey.HAS_HAT));
+        assertTrue(chica27.attributes().contains(QuestionKey.HAS_CURLY_HAIR));
 
         var chico02 = cards.stream()
                 .filter(card -> "/characters/png/chico-02.png".equals(card.imageUrl()))
@@ -60,12 +63,16 @@ class CharacterCatalogTest {
                 .orElseThrow();
         assertTrue(chico02.attributes().contains(QuestionKey.USES_GLASSES));
         assertTrue(chico02.attributes().contains(QuestionKey.HAS_BEARD));
+        assertTrue(chico02.attributes().contains(QuestionKey.HAS_SHORT_HAIR));
 
         var chico36 = cards.stream()
                 .filter(card -> "/characters/png/chico-36.png".equals(card.imageUrl()))
                 .findFirst()
                 .orElseThrow();
         assertTrue(chico36.attributes().contains(QuestionKey.IS_BALD));
+        assertTrue(chico36.attributes().contains(QuestionKey.IS_MALE));
+        assertTrue(chico36.attributes().contains(QuestionKey.IS_BALD));
+        assertTrue(!chico36.attributes().contains(QuestionKey.HAS_SHORT_HAIR));
     }
 
     @Test
@@ -95,7 +102,6 @@ class CharacterCatalogTest {
         var cards = catalog.allCharacters();
 
         List<QuestionKey> notCuratedYet = List.of(
-                QuestionKey.HAS_BLUE_EYES,
                 QuestionKey.HAS_FAIR_SKIN,
                 QuestionKey.HAS_DARK_SKIN,
                 QuestionKey.HAS_BLONDE_HAIR
@@ -104,5 +110,10 @@ class CharacterCatalogTest {
         notCuratedYet.forEach(key ->
                 assertTrue(cards.stream().noneMatch(card -> card.attributes().contains(key)))
         );
+
+        assertTrue(cards.stream().anyMatch(card -> card.attributes().contains(QuestionKey.HAS_LONG_HAIR)));
+        assertTrue(cards.stream().anyMatch(card -> card.attributes().contains(QuestionKey.HAS_SHORT_HAIR)));
+        assertTrue(cards.stream().anyMatch(card -> card.attributes().contains(QuestionKey.HAS_STRAIGHT_HAIR)));
+        assertTrue(cards.stream().anyMatch(card -> card.attributes().contains(QuestionKey.HAS_CURLY_HAIR)));
     }
 }
