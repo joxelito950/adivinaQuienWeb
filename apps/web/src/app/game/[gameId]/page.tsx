@@ -388,9 +388,6 @@ export default function GamePage({ params }: PageProps) {
           </p>
           <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
             <Button onClick={() => router.push('/')}>
-              Ir al inicio
-            </Button>
-            <Button variant="secondary" onClick={() => router.push('/')}>
               Jugar otra partida
             </Button>
           </div>
