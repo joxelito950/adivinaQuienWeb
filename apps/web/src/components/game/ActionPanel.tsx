@@ -20,6 +20,7 @@ interface ActionPanelProps {
   onTabChange:             (tab: ActionTab) => void
   pendingQuestion?:        PendingQuestion | null
   selectedGuessCharacterName?: string | null
+  resolvedQuestionAnswers?: Partial<Record<QuestionKey, boolean>>
   onAskQuestion?:          (key: QuestionKey) => void
   onAnswerQuestion?:       (answer: boolean) => void
   className?:              string
@@ -31,6 +32,7 @@ export function ActionPanel({
   onTabChange,
   pendingQuestion = null,
   selectedGuessCharacterName = null,
+  resolvedQuestionAnswers = {},
   onAskQuestion,
   onAnswerQuestion,
   className,
@@ -46,6 +48,10 @@ export function ActionPanel({
     }
 
     if (activeTab === 'question' && selectedQuestion) {
+      if (Object.prototype.hasOwnProperty.call(resolvedQuestionAnswers, selectedQuestion)) {
+        setQuestion(null)
+        return
+      }
       onAskQuestion?.(selectedQuestion)
       setQuestion(null)
     }
@@ -124,21 +130,39 @@ export function ActionPanel({
       {activeTab === 'question' && (
         <div className="grid grid-cols-1 gap-2 xs:grid-cols-2">
           {ACTIVE_QUESTION_KEYS.map((key) => (
+            (() => {
+              const isResolved = Object.prototype.hasOwnProperty.call(resolvedQuestionAnswers, key)
+              const resolvedAnswer = resolvedQuestionAnswers[key]
+              const isDisabled = !isMyTurn || isResolved
+
+              return (
             <button
               key={key}
-              disabled={!isMyTurn}
-              onClick={() => setQuestion(key)}
+              disabled={isDisabled}
+              onClick={() => {
+                if (isResolved) return
+                setQuestion(key)
+              }}
               className={cn(
                 'flex items-center gap-2 rounded-xl border px-3 py-2 text-left text-sm transition-all',
                 'disabled:cursor-not-allowed disabled:opacity-50',
-                selectedQuestion === key
+                isResolved
+                  ? 'border-emerald-700/70 bg-emerald-900/20 text-emerald-200'
+                  : selectedQuestion === key
                   ? 'border-brand-400 bg-brand-900/30 text-brand-200'
                   : 'border-slate-700 bg-slate-700/40 text-slate-300 hover:border-slate-500 hover:bg-slate-700',
               )}
             >
               <AttributeBadge attribute={key} showLabel={false} className="shrink-0" />
-              <span>{QUESTION_LABELS[key]}</span>
+              <span className="flex-1">{QUESTION_LABELS[key]}</span>
+              {isResolved && (
+                <span className={cn('rounded-md px-1.5 py-0.5 text-xs font-semibold', resolvedAnswer ? 'bg-emerald-800/70 text-emerald-100' : 'bg-rose-800/70 text-rose-100')}>
+                  {resolvedAnswer ? 'Sí' : 'No'}
+                </span>
+              )}
             </button>
+              )
+            })()
           ))}
         </div>
       )}
