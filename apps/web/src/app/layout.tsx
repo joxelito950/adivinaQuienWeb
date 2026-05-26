@@ -7,12 +7,15 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 export const metadata: Metadata = {
   title: 'Adivina Quién',
   description: 'Juego multijugador de adivinar personajes en tiempo real.',
+  icons: {
+    icon: '/icon.svg',
+  },
 }
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
+  maximumScale: 5,
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

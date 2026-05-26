@@ -26,8 +26,12 @@ import tools.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -56,6 +60,9 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
     private final Map<String, String> playerBySessionId = new ConcurrentHashMap<>();
     private final Map<String, String> sessionIdByPlayer = new ConcurrentHashMap<>();
     private final Map<String, Future<?>> questionTimeoutTaskByGame = new ConcurrentHashMap<>();
+    private final Map<String, Future<?>> playerInactivityTaskByGame = new ConcurrentHashMap<>();
+    private final Map<String, Map<String, Set<String>>> candidateCharacterIdsByGame = new ConcurrentHashMap<>();
+    private final Random random = new Random();
     private final ExecutorService virtualExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
     public GameWebSocketHandler(
@@ -111,6 +118,9 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
 
         broadcast(game, "player_disconnected", Map.of(PLAYER_ID, playerId, "at", Instant.now().toString()));
         if (game.getStatus() == GameStatus.ABANDONED || game.getStatus() == GameStatus.FINISHED) {
+            cancelQuestionTimeout(game.getGameId());
+            cancelPlayerInactivityTimeout(game.getGameId());
+            candidateCharacterIdsByGame.remove(game.getGameId());
             broadcast(game, "game_finished", Map.of(GAME_ID, game.getGameId(), "winnerPlayerId", game.getWinnerPlayerId()));
         }
     }
@@ -159,6 +169,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         String gameId = getRequiredText(payload, GAME_ID);
         String playerId = getRequiredText(payload, PLAYER_ID);
         QuestionKey questionKey = QuestionKey.fromWireValue(getRequiredText(payload, QUESTION_KEY));
+        cancelPlayerInactivityTimeout(gameId);
 
         PendingQuestionPrompt prompt = gameService.askQuestion(gameId, playerId, questionKey);
         GameSession game = gameService.getGameById(gameId);
@@ -210,6 +221,8 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         ));
 
         broadcast(game, TURN_CHANGED, Map.of(GAME_ID, gameId, CURRENT_TURN_PLAYER_ID, result.nextTurnPlayerId()));
+        updateCandidatesFromAnswer(game, result.playerId(), result.questionKey(), result.answer());
+        schedulePlayerInactivityTimeout(game);
         maybeTriggerDummyTurn(game);
     }
 
@@ -217,6 +230,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         String gameId = getRequiredText(payload, GAME_ID);
         String playerId = getRequiredText(payload, PLAYER_ID);
         String characterId = getRequiredText(payload, CHARACTER_ID);
+        cancelPlayerInactivityTimeout(gameId);
 
         GuessResult result = gameService.guessCharacter(gameId, playerId, characterId);
         GameSession game = gameService.getGameById(gameId);
@@ -229,11 +243,17 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         ));
 
         if (result.finished()) {
+            cancelQuestionTimeout(gameId);
+            cancelPlayerInactivityTimeout(gameId);
+            candidateCharacterIdsByGame.remove(gameId);
             broadcast(game, "game_finished", Map.of(GAME_ID, gameId, "winnerPlayerId", result.winnerPlayerId()));
             return;
         }
 
+        removeCandidateGuess(game, playerId, characterId);
+
         broadcast(game, TURN_CHANGED, Map.of(GAME_ID, gameId, CURRENT_TURN_PLAYER_ID, result.nextTurnPlayerId()));
+        schedulePlayerInactivityTimeout(game);
         maybeTriggerDummyTurn(game);
     }
 
@@ -260,14 +280,18 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                 QUESTION_KEY, pending.questionKey(),
                 "timeoutSeconds", pending.timeoutSeconds()
             ));
+        } else {
+            schedulePlayerInactivityTimeout(game);
         }
     }
 
     private void onMatchStarted(MatchStarted matchStarted) {
         GameSession game = gameService.createFromMatch(matchStarted);
+        initializeCandidateTracking(game);
 
         sendGameStarted(game, matchStarted.first());
         sendGameStarted(game, matchStarted.second());
+        schedulePlayerInactivityTimeout(game);
         maybeTriggerDummyTurn(game);
     }
 
@@ -313,6 +337,8 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         if (current == null || current.getType() != PlayerType.DUMMY) {
             return;
         }
+
+        cancelPlayerInactivityTimeout(game.getGameId());
 
         virtualExecutor.submit(() -> {
             try {
@@ -367,10 +393,12 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                         ANSWER, result.answer(),
                         "timeoutFallback", result.timeoutFallback()
                 ));
+                updateCandidatesFromAnswer(game, result.playerId(), result.questionKey(), result.answer());
                 broadcast(game, TURN_CHANGED, Map.of(
                         GAME_ID, prompt.gameId(),
                         CURRENT_TURN_PLAYER_ID, result.nextTurnPlayerId()
                 ));
+                schedulePlayerInactivityTimeout(game);
                 maybeTriggerDummyTurn(game);
             } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
@@ -405,10 +433,12 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                         ANSWER, result.answer(),
                         "timeoutFallback", result.timeoutFallback()
                 ));
+                updateCandidatesFromAnswer(game, result.playerId(), result.questionKey(), result.answer());
                 broadcast(game, TURN_CHANGED, Map.of(
                         GAME_ID, prompt.gameId(),
                         CURRENT_TURN_PLAYER_ID, result.nextTurnPlayerId()
                 ));
+                schedulePlayerInactivityTimeout(game);
                 maybeTriggerDummyTurn(game);
             } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
@@ -420,6 +450,236 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
 
     private void cancelQuestionTimeout(String gameId) {
         Future<?> previous = questionTimeoutTaskByGame.remove(gameId);
+        if (previous != null) {
+            previous.cancel(true);
+        }
+    }
+
+    private void initializeCandidateTracking(GameSession game) {
+        if (game == null) {
+            return;
+        }
+
+        Map<String, Set<String>> candidatesByPlayer = new ConcurrentHashMap<>();
+        candidatesByPlayer.put(game.getPlayerOne().getPlayerId(), allCandidateIdsExceptOwnSecret(game, game.getPlayerOne().getPlayerId()));
+        candidatesByPlayer.put(game.getPlayerTwo().getPlayerId(), allCandidateIdsExceptOwnSecret(game, game.getPlayerTwo().getPlayerId()));
+        candidateCharacterIdsByGame.put(game.getGameId(), candidatesByPlayer);
+    }
+
+    private Set<String> allCandidateIdsExceptOwnSecret(GameSession game, String playerId) {
+        String ownSecret = game.getSecretByPlayer().get(playerId);
+        Set<String> ids = new LinkedHashSet<>();
+        for (CharacterCard card : game.getBoard().characters()) {
+            if (!card.characterId().equals(ownSecret)) {
+                ids.add(card.characterId());
+            }
+        }
+        return ids;
+    }
+
+    private void updateCandidatesFromAnswer(GameSession game, String askerPlayerId, String questionKeyWire, boolean answer) {
+        if (game == null || askerPlayerId == null || questionKeyWire == null) {
+            return;
+        }
+
+        Map<String, Set<String>> byPlayer = candidateCharacterIdsByGame.computeIfAbsent(
+                game.getGameId(),
+                ignored -> new ConcurrentHashMap<>()
+        );
+
+        Set<String> current = byPlayer.computeIfAbsent(
+                askerPlayerId,
+                ignored -> allCandidateIdsExceptOwnSecret(game, askerPlayerId)
+        );
+
+        QuestionKey key;
+        try {
+            key = QuestionKey.fromWireValue(questionKeyWire);
+        } catch (Exception ignored) {
+            return;
+        }
+
+        Set<String> filtered = new HashSet<>();
+        for (CharacterCard card : game.getBoard().characters()) {
+            if (!current.contains(card.characterId())) {
+                continue;
+            }
+            if (card.hasAttribute(key) == answer) {
+                filtered.add(card.characterId());
+            }
+        }
+
+        if (!filtered.isEmpty()) {
+            byPlayer.put(askerPlayerId, filtered);
+        }
+    }
+
+    private int candidateCountForPlayer(GameSession game, String playerId) {
+        if (game == null || playerId == null) {
+            return Integer.MAX_VALUE;
+        }
+        Map<String, Set<String>> byPlayer = candidateCharacterIdsByGame.get(game.getGameId());
+        if (byPlayer == null || byPlayer.get(playerId) == null || byPlayer.get(playerId).isEmpty()) {
+            return allCandidateIdsExceptOwnSecret(game, playerId).size();
+        }
+        return byPlayer.get(playerId).size();
+    }
+
+    private void removeCandidateGuess(GameSession game, String playerId, String guessedCharacterId) {
+        if (game == null || playerId == null || guessedCharacterId == null) {
+            return;
+        }
+
+        Map<String, Set<String>> byPlayer = candidateCharacterIdsByGame.get(game.getGameId());
+        if (byPlayer == null) {
+            return;
+        }
+        Set<String> candidates = byPlayer.get(playerId);
+        if (candidates == null) {
+            return;
+        }
+        candidates.remove(guessedCharacterId);
+    }
+
+    private String randomCandidateCharacterId(GameSession game, String playerId) {
+        Map<String, Set<String>> byPlayer = candidateCharacterIdsByGame.get(game.getGameId());
+        Set<String> candidates = byPlayer == null ? null : byPlayer.get(playerId);
+        List<String> pool = (candidates == null || candidates.isEmpty())
+                ? List.copyOf(allCandidateIdsExceptOwnSecret(game, playerId))
+                : List.copyOf(candidates);
+
+        if (pool.isEmpty()) {
+            return game.getBoard().characters().getFirst().characterId();
+        }
+        return pool.get(random.nextInt(pool.size()));
+    }
+
+    private void schedulePlayerInactivityTimeout(GameSession game) {
+        if (game == null) {
+            return;
+        }
+
+        String gameId = game.getGameId();
+        cancelPlayerInactivityTimeout(gameId);
+
+        if (game.getStatus() != GameStatus.IN_PROGRESS) {
+            return;
+        }
+        if (gameService.getPendingQuestion(gameId) != null) {
+            return;
+        }
+
+        PlayerState current = game.playerById(game.getCurrentTurnPlayerId());
+        if (current == null || current.getType() != PlayerType.HUMAN) {
+            return;
+        }
+
+        Future<?> task = virtualExecutor.submit(() -> {
+            try {
+                Thread.sleep(appProperties.getPlayerInactivityTimeoutSeconds() * 1000L);
+
+                GameSession latest = gameService.getGameById(gameId);
+                if (latest == null || latest.getStatus() != GameStatus.IN_PROGRESS) {
+                    return;
+                }
+                if (gameService.getPendingQuestion(gameId) != null) {
+                    return;
+                }
+
+                String currentPlayerId = latest.getCurrentTurnPlayerId();
+                PlayerState latestCurrent = latest.playerById(currentPlayerId);
+                if (latestCurrent == null || latestCurrent.getType() != PlayerType.HUMAN) {
+                    return;
+                }
+
+                int candidateCount = candidateCountForPlayer(latest, currentPlayerId);
+                if (candidateCount <= 4) {
+                    String guessedCharacterId = randomCandidateCharacterId(latest, currentPlayerId);
+                    GuessResult result = gameService.guessCharacter(gameId, currentPlayerId, guessedCharacterId);
+                    GameSession updated = gameService.getGameById(gameId);
+                    if (updated == null) {
+                        return;
+                    }
+
+                    broadcast(updated, "auto_action_triggered", Map.of(
+                            GAME_ID, gameId,
+                            PLAYER_ID, currentPlayerId,
+                            "action", "guess_character",
+                            CHARACTER_ID, guessedCharacterId,
+                            "candidateCount", candidateCount,
+                            "correct", result.correct()
+                    ));
+
+                    broadcast(updated, GUESS_RESULT, Map.of(
+                            GAME_ID, gameId,
+                            PLAYER_ID, currentPlayerId,
+                            CHARACTER_ID, guessedCharacterId,
+                            "correct", result.correct()
+                    ));
+
+                    if (result.finished()) {
+                        cancelQuestionTimeout(gameId);
+                        cancelPlayerInactivityTimeout(gameId);
+                        candidateCharacterIdsByGame.remove(gameId);
+                        broadcast(updated, "game_finished", Map.of(GAME_ID, gameId, "winnerPlayerId", result.winnerPlayerId()));
+                        return;
+                    }
+
+                    broadcast(updated, TURN_CHANGED, Map.of(GAME_ID, gameId, CURRENT_TURN_PLAYER_ID, result.nextTurnPlayerId()));
+                    schedulePlayerInactivityTimeout(updated);
+                    maybeTriggerDummyTurn(updated);
+                    return;
+                }
+
+                QuestionKey randomQuestion = dummyPlayerService.chooseQuestion(latest.getDifficulty());
+                PendingQuestionPrompt prompt = gameService.askQuestion(gameId, currentPlayerId, randomQuestion);
+                GameSession updated = gameService.getGameById(gameId);
+                if (updated == null) {
+                    return;
+                }
+
+                broadcast(updated, "auto_action_triggered", Map.of(
+                        GAME_ID, gameId,
+                        PLAYER_ID, currentPlayerId,
+                        "action", "ask_question",
+                        QUESTION_KEY, prompt.questionKey(),
+                        "candidateCount", candidateCount
+                ));
+
+                broadcast(updated, "question_asked", Map.of(
+                        GAME_ID, prompt.gameId(),
+                        PLAYER_ID, prompt.askerPlayerId(),
+                        QUESTION_KEY, prompt.questionKey()
+                ));
+                broadcast(updated, "question_pending", Map.of(
+                        GAME_ID, prompt.gameId(),
+                        "askerPlayerId", prompt.askerPlayerId(),
+                        "defenderPlayerId", prompt.defenderPlayerId(),
+                        QUESTION_KEY, prompt.questionKey(),
+                        "timeoutSeconds", prompt.timeoutSeconds()
+                ));
+
+                scheduleQuestionTimeout(prompt);
+                PlayerState defender = updated.playerById(prompt.defenderPlayerId());
+                if (defender != null && defender.getType() == PlayerType.DUMMY) {
+                    scheduleDummyAnswer(prompt);
+                }
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+            } catch (GameActionException ignored) {
+                // Si el estado cambió por una acción concurrente, no es un error operativo.
+            } catch (Exception ex) {
+                logger.warn("Player inactivity handling failed", ex);
+            } finally {
+                playerInactivityTaskByGame.remove(gameId);
+            }
+        });
+
+        playerInactivityTaskByGame.put(gameId, task);
+    }
+
+    private void cancelPlayerInactivityTimeout(String gameId) {
+        Future<?> previous = playerInactivityTaskByGame.remove(gameId);
         if (previous != null) {
             previous.cancel(true);
         }
@@ -482,6 +742,9 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
     public void shutdown() {
         questionTimeoutTaskByGame.values().forEach(task -> task.cancel(true));
         questionTimeoutTaskByGame.clear();
+        playerInactivityTaskByGame.values().forEach(task -> task.cancel(true));
+        playerInactivityTaskByGame.clear();
+        candidateCharacterIdsByGame.clear();
         virtualExecutor.shutdownNow();
     }
 }

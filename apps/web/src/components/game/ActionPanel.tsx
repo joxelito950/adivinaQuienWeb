@@ -6,7 +6,7 @@ import { AttributeBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
 
-type Tab = 'question' | 'guess'
+export type ActionTab = 'question' | 'guess'
 
 const QUESTION_LABELS: Record<QuestionKey, string> = {
   [QuestionKey.USES_GLASSES]:    '¿Usa lentes?',
@@ -15,11 +15,11 @@ const QUESTION_LABELS: Record<QuestionKey, string> = {
   [QuestionKey.HAS_BLONDE_HAIR]: '¿Tiene pelo rubio?',
   [QuestionKey.HAS_BLUE_EYES]:   '¿Tiene ojos azules?',
   [QuestionKey.HAS_EARRINGS]:    '¿Tiene aretes?',
-}
-
-interface CharacterOption {
-  characterId:  string
-  displayName:  string
+  [QuestionKey.IS_MALE]:         '¿Es hombre?',
+  [QuestionKey.IS_FEMALE]:       '¿Es mujer?',
+  [QuestionKey.IS_BALD]:         '¿Es calvo?',
+  [QuestionKey.HAS_FAIR_SKIN]:   '¿Es de tez clara?',
+  [QuestionKey.HAS_DARK_SKIN]:   '¿Es de tez oscura?',
 }
 
 interface PendingQuestion {
@@ -29,26 +29,26 @@ interface PendingQuestion {
 
 interface ActionPanelProps {
   isMyTurn:                boolean
+  activeTab:               ActionTab
+  onTabChange:             (tab: ActionTab) => void
   pendingQuestion?:        PendingQuestion | null
-  opponentCharacterOptions?: CharacterOption[]
+  selectedGuessCharacterName?: string | null
   onAskQuestion?:          (key: QuestionKey) => void
   onAnswerQuestion?:       (answer: boolean) => void
-  onGuessCharacter?:       (characterId: string) => void
   className?:              string
 }
 
 export function ActionPanel({
   isMyTurn,
+  activeTab,
+  onTabChange,
   pendingQuestion = null,
-  opponentCharacterOptions = [],
+  selectedGuessCharacterName = null,
   onAskQuestion,
   onAnswerQuestion,
-  onGuessCharacter,
   className,
 }: ActionPanelProps) {
-  const [tab, setTab]                     = useState<Tab>('question')
   const [selectedQuestion, setQuestion]   = useState<QuestionKey | null>(null)
-  const [selectedCharacter, setCharacter] = useState<string | null>(null)
   const [selectedAnswer, setSelectedAnswer] = useState<boolean | null>(null)
 
   function handleConfirm() {
@@ -58,20 +58,16 @@ export function ActionPanel({
       return
     }
 
-    if (tab === 'question' && selectedQuestion) {
+    if (activeTab === 'question' && selectedQuestion) {
       onAskQuestion?.(selectedQuestion)
       setQuestion(null)
-    } else if (tab === 'guess' && selectedCharacter) {
-      onGuessCharacter?.(selectedCharacter)
-      setCharacter(null)
     }
   }
 
   const canConfirm = pendingQuestion
     ? selectedAnswer !== null
     : isMyTurn && (
-      (tab === 'question' && !!selectedQuestion) ||
-      (tab === 'guess'    && !!selectedCharacter)
+      (activeTab === 'question' && !!selectedQuestion)
     )
 
   const waitingForOpponentAnswer = !pendingQuestion && !isMyTurn
@@ -119,15 +115,15 @@ export function ActionPanel({
         <>
       {/* Tabs */}
       <div className="mb-4 flex rounded-xl bg-slate-900 p-1 gap-1">
-        {(['question', 'guess'] as Tab[]).map((t) => (
+        {(['question', 'guess'] as ActionTab[]).map((t) => (
           <button
             key={t}
-            onClick={() => setTab(t)}
+            onClick={() => onTabChange(t)}
             disabled={!isMyTurn}
             className={cn(
               'flex-1 rounded-lg py-2 text-sm font-medium transition-all',
               'disabled:cursor-not-allowed disabled:opacity-50',
-              tab === t
+              activeTab === t
                 ? 'bg-brand-600 text-white shadow-sm'
                 : 'text-slate-400 hover:text-slate-200',
             )}
@@ -138,7 +134,7 @@ export function ActionPanel({
       </div>
 
       {/* Question options */}
-      {tab === 'question' && (
+      {activeTab === 'question' && (
         <div className="grid grid-cols-1 gap-2 xs:grid-cols-2">
           {(Object.values(QuestionKey) as QuestionKey[]).map((key) => (
             <button
@@ -160,33 +156,14 @@ export function ActionPanel({
         </div>
       )}
 
-      {/* Guess options */}
-      {tab === 'guess' && (
-        <div className="max-h-48 overflow-y-auto scrollbar-thin">
-          {opponentCharacterOptions.length === 0 ? (
-            <p className="py-4 text-center text-sm text-slate-500">
-              No hay personajes disponibles.
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 gap-1.5 xs:grid-cols-2">
-              {opponentCharacterOptions.map(({ characterId, displayName }) => (
-                <button
-                  key={characterId}
-                  disabled={!isMyTurn}
-                  onClick={() => setCharacter(characterId)}
-                  className={cn(
-                    'rounded-xl border px-3 py-2 text-left text-sm transition-all',
-                    'disabled:cursor-not-allowed disabled:opacity-50',
-                    selectedCharacter === characterId
-                      ? 'border-brand-400 bg-brand-900/30 text-brand-200'
-                      : 'border-slate-700 bg-slate-700/40 text-slate-300 hover:border-slate-500 hover:bg-slate-700',
-                  )}
-                >
-                  {displayName}
-                </button>
-              ))}
-            </div>
-          )}
+      {/* Guess mode guidance */}
+      {activeTab === 'guess' && (
+        <div className="space-y-2 rounded-xl border border-slate-700 bg-slate-900/60 px-3 py-3 text-sm text-slate-300">
+          <p className="font-medium text-slate-200">Selecciona una carta del tablero para adivinar.</p>
+          <p>La confirmación aparece en la misma carta seleccionada.</p>
+          <p className="text-xs text-slate-400">
+            Candidato actual: {selectedGuessCharacterName ?? 'ninguno'}
+          </p>
         </div>
       )}
         </>
@@ -194,10 +171,10 @@ export function ActionPanel({
 
       <Button
         className="mt-4 w-full"
-        disabled={!canConfirm}
+        disabled={!canConfirm || (!pendingQuestion && activeTab === 'guess')}
         onClick={handleConfirm}
       >
-        {pendingQuestion ? 'Confirmar respuesta' : 'Confirmar acción'}
+        {pendingQuestion ? 'Confirmar respuesta' : 'Confirmar pregunta'}
       </Button>
 
       {waitingForOpponentAnswer && (

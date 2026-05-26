@@ -16,6 +16,11 @@ export enum QuestionKey {
   HAS_BLONDE_HAIR = 'HAS_BLONDE_HAIR',
   HAS_BLUE_EYES   = 'HAS_BLUE_EYES',
   HAS_EARRINGS    = 'HAS_EARRINGS',
+  IS_MALE         = 'IS_MALE',
+  IS_FEMALE       = 'IS_FEMALE',
+  IS_BALD         = 'IS_BALD',
+  HAS_FAIR_SKIN   = 'HAS_FAIR_SKIN',
+  HAS_DARK_SKIN   = 'HAS_DARK_SKIN',
 }
 
 export enum GameStatus {
@@ -132,6 +137,16 @@ export type GuessResultEvent = WireMessage<'guess_result', {
   correct:           boolean
 }>
 
+export type AutoActionTriggeredEvent = WireMessage<'auto_action_triggered', {
+  gameId: string
+  playerId: string
+  action: 'ask_question' | 'guess_character'
+  questionKey?: string
+  characterId?: string
+  candidateCount?: number
+  correct?: boolean
+}>
+
 export type InvalidActionEvent = WireMessage<'invalid_action', {
   reason: string
 }>
@@ -173,6 +188,7 @@ export type ServerMessage =
   | QuestionPendingEvent
   | QuestionAnsweredEvent
   | GuessResultEvent
+  | AutoActionTriggeredEvent
   | InvalidActionEvent
   | PlayerDisconnectedEvent
   | GameFinishedEvent

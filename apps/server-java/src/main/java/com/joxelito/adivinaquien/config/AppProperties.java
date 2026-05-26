@@ -21,6 +21,9 @@ public class AppProperties {
     @Min(1)
     private int questionResponseTimeoutSeconds = 15;
 
+    @Min(5)
+    private int playerInactivityTimeoutSeconds = 30;
+
     @Min(50)
     private int dummyActionDelayMillis = 600;
 

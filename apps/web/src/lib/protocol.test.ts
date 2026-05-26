@@ -114,4 +114,25 @@ describe('protocol helpers', () => {
     const payload = parsed?.payload as { board?: { characters?: Array<{ imageUrl?: string }> } }
     expect(payload.board?.characters?.[0]?.imageUrl).toBe('/characters/png/chica-01.png')
   })
+
+  it('parses auto_action_triggered payloads', () => {
+    const raw = JSON.stringify({
+      type: 'auto_action_triggered',
+      payload: {
+        gameId: 'g-1',
+        playerId: 'p1',
+        action: 'guess_character',
+        characterId: 'char-9',
+        candidateCount: 3,
+        correct: false,
+      },
+    })
+
+    const parsed = parseServerMessage(raw)
+    const payload = parsed?.payload as { action?: string; candidateCount?: number; characterId?: string }
+    expect(parsed?.type).toBe('auto_action_triggered')
+    expect(payload.action).toBe('guess_character')
+    expect(payload.candidateCount).toBe(3)
+    expect(payload.characterId).toBe('char-9')
+  })
 })

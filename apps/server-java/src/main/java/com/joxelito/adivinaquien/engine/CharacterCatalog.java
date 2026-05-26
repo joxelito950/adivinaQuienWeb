@@ -121,9 +121,33 @@ public class CharacterCatalog {
                     attrs.add(keys[bit]);
                 }
             }
+
+            // Normaliza rasgos mutuamente excluyentes para mantener consistencia del tablero.
+            if (imageFile.toLowerCase().startsWith("chica-")) {
+                attrs.remove(QuestionKey.IS_MALE);
+                attrs.add(QuestionKey.IS_FEMALE);
+            } else {
+                attrs.remove(QuestionKey.IS_FEMALE);
+                attrs.add(QuestionKey.IS_MALE);
+            }
+
+            if (i % 4 == 0) {
+                attrs.remove(QuestionKey.HAS_FAIR_SKIN);
+                attrs.add(QuestionKey.HAS_DARK_SKIN);
+            } else {
+                attrs.remove(QuestionKey.HAS_DARK_SKIN);
+                attrs.add(QuestionKey.HAS_FAIR_SKIN);
+            }
+
+            if (i % 6 == 0) {
+                attrs.add(QuestionKey.IS_BALD);
+            } else {
+                attrs.remove(QuestionKey.IS_BALD);
+            }
+
             Set<QuestionKey> override = ATTRIBUTE_OVERRIDES.get(imageFile);
             if (override != null) {
-                attrs = EnumSet.copyOf(override);
+                attrs.addAll(override);
             }
             String imageUrl = "/characters/png/" + imageFile;
             list.add(new CharacterCard("char-" + i, displayName, imageUrl, attrs));

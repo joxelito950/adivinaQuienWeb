@@ -10,6 +10,11 @@ const ATTRIBUTE_CONFIG: Record<QuestionKey, { emoji: string; label: string; colo
   [QuestionKey.HAS_BLONDE_HAIR]: { emoji: '👱', label: 'Pelo rubio',   color: 'bg-yellow-900/60 text-yellow-300 border-yellow-700' },
   [QuestionKey.HAS_BLUE_EYES]:   { emoji: '👁️',  label: 'Ojos azules', color: 'bg-blue-900/60   text-blue-300   border-blue-700'   },
   [QuestionKey.HAS_EARRINGS]:    { emoji: '💎', label: 'Aretes',       color: 'bg-pink-900/60   text-pink-300   border-pink-700'   },
+  [QuestionKey.IS_MALE]:         { emoji: '♂',  label: 'Hombre',       color: 'bg-cyan-900/60   text-cyan-300   border-cyan-700'   },
+  [QuestionKey.IS_FEMALE]:       { emoji: '♀',  label: 'Mujer',        color: 'bg-rose-900/60   text-rose-300   border-rose-700'   },
+  [QuestionKey.IS_BALD]:         { emoji: '🪒', label: 'Calvo',        color: 'bg-stone-900/60  text-stone-300  border-stone-700'  },
+  [QuestionKey.HAS_FAIR_SKIN]:   { emoji: '☀',  label: 'Tez clara',    color: 'bg-orange-900/60 text-orange-300 border-orange-700' },
+  [QuestionKey.HAS_DARK_SKIN]:   { emoji: '🌙', label: 'Tez oscura',   color: 'bg-indigo-900/60 text-indigo-300 border-indigo-700' },
 }
 
 interface AttributeBadgeProps {

@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useState } from 'react'
+import { KeyboardEvent, useState } from 'react'
 import { CharacterCard as CharacterCardType } from '@/lib/protocol'
 import { AttributeBadge } from '@/components/ui/Badge'
 import { cn } from '@/lib/utils'
@@ -25,6 +25,9 @@ interface CharacterCardProps {
   isSecret?:     boolean
   isSelected?:   boolean
   onClick?:      () => void
+  onZoomClick?:  () => void
+  showGuessConfirm?: boolean
+  onGuessConfirm?: () => void
 }
 
 export function CharacterCard({
@@ -33,6 +36,9 @@ export function CharacterCard({
   isSecret = false,
   isSelected = false,
   onClick,
+  onZoomClick,
+  showGuessConfirm = false,
+  onGuessConfirm,
 }: CharacterCardProps) {
   const [imageFailed, setImageFailed] = useState(false)
   const attributes = character.attributes ?? []
@@ -40,28 +46,55 @@ export function CharacterCard({
   const initial = character.displayName.charAt(0).toUpperCase()
   const imageUrl = character.imageUrl
   const shouldShowImage = Boolean(imageUrl) && !imageFailed
-  const Tag     = onClick ? 'button' : 'div'
+  const isInteractive = Boolean(onClick)
+
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (!isInteractive || isEliminated) return
+    if (event.key !== 'Enter' && event.key !== ' ') return
+    event.preventDefault()
+    onClick?.()
+  }
 
   return (
-    <Tag
-      {...(onClick ? { onClick, type: 'button' as const, 'aria-pressed': isSelected } : {})}
+    <div
+      onClick={isInteractive && !isEliminated ? onClick : undefined}
+      onKeyDown={handleKeyDown}
+      role={isInteractive ? 'button' : undefined}
+      tabIndex={isInteractive ? 0 : -1}
+      aria-pressed={isInteractive ? isSelected : undefined}
       className={cn(
-        'relative flex flex-col items-center gap-2 rounded-xl border p-3 text-center',
-        'min-w-0 overflow-hidden transition-all select-none',
+        'group relative flex min-h-[12.5rem] flex-col rounded-2xl border p-2 text-center',
+        'min-w-0 overflow-hidden select-none transition-transform duration-200',
+        'sm:min-h-[15rem]',
         isEliminated
           ? 'border-slate-700/50 bg-slate-800/30 opacity-40 grayscale'
           : isSelected
           ? 'border-brand-400 bg-brand-900/30 shadow-md shadow-brand-400/20 ring-1 ring-brand-400'
-          : onClick
-          ? 'border-slate-700 bg-slate-800 hover:border-slate-500 hover:bg-slate-700 cursor-pointer active:scale-95'
+          : isInteractive
+          ? 'cursor-pointer border-slate-700 bg-slate-800 hover:border-slate-500 hover:bg-slate-700 active:scale-[0.985]'
           : 'border-slate-700 bg-slate-800',
       )}
     >
+      {onZoomClick && (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation()
+            onZoomClick()
+          }}
+          className="absolute left-1.5 top-1.5 z-20 rounded-full border border-slate-500/70 bg-slate-900/80 px-1.5 py-0.5 text-xs text-slate-200 transition-colors hover:border-slate-300"
+          aria-label={`Ampliar ${character.displayName}`}
+        >
+          🔍
+        </button>
+      )}
+
       {/* Avatar */}
       <div
         className={cn(
-          'relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl text-base font-bold text-white',
-          'sm:h-20 sm:w-20 sm:text-xl',
+          'relative flex aspect-[4/5] w-full shrink-0 items-center justify-center overflow-hidden rounded-xl text-2xl font-bold text-white',
+          'transition-transform duration-200 motion-reduce:transition-none',
+          !isEliminated && 'group-hover:scale-105',
           !shouldShowImage && color,
         )}
       >
@@ -70,8 +103,8 @@ export function CharacterCard({
             src={imageUrl!}
             alt={character.displayName}
             fill
-            sizes="(max-width: 640px) 64px, 80px"
-            className="object-contain p-1"
+            sizes="(max-width: 640px) 40vw, (max-width: 1024px) 20vw, 14vw"
+            className="object-contain p-1.5"
             onError={() => setImageFailed(true)}
           />
         ) : (
@@ -80,17 +113,30 @@ export function CharacterCard({
       </div>
 
       {/* Name */}
-      <span className="w-full truncate text-sm font-semibold text-slate-100 sm:text-base">
+      <span className="mt-2 w-full truncate text-sm font-semibold text-slate-100 sm:text-base">
         {character.displayName}
       </span>
 
       {/* Attribute badges — solo en sm+ para no saturar mobile */}
       {!isEliminated && attributes.length > 0 && (
-        <div className="hidden flex-wrap justify-center gap-0.5 sm:flex">
+        <div className="mt-1 hidden flex-wrap justify-center gap-0.5 sm:flex">
           {attributes.map((attr) => (
             <AttributeBadge key={attr} attribute={attr} showLabel={false} />
           ))}
         </div>
+      )}
+
+      {showGuessConfirm && !isEliminated && (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation()
+            onGuessConfirm?.()
+          }}
+          className="mt-2 rounded-lg border border-brand-300 bg-brand-500 px-2 py-1 text-xs font-semibold text-white transition-colors hover:bg-brand-600"
+        >
+          Confirmar adivinanza
+        </button>
       )}
 
       {/* Indicador de personaje secreto del jugador */}
@@ -106,6 +152,6 @@ export function CharacterCard({
           <span className="rotate-[-15deg] text-xl opacity-80">❌</span>
         </div>
       )}
-    </Tag>
+    </div>
   )
 }

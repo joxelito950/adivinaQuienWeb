@@ -3,7 +3,7 @@
 import { use, useEffect, useMemo, useRef, useState } from 'react'
 import { BoardGrid } from '@/components/game/BoardGrid'
 import { TurnIndicator } from '@/components/game/TurnIndicator'
-import { ActionPanel } from '@/components/game/ActionPanel'
+import { ActionPanel, ActionTab } from '@/components/game/ActionPanel'
 import { GameLog } from '@/components/game/GameLog'
 import type { LogEntry } from '@/components/game/GameLog'
 import { Badge } from '@/components/ui/Badge'
@@ -25,6 +25,11 @@ const QUESTION_LABELS: Record<QuestionKey, string> = {
   [QuestionKey.HAS_BLONDE_HAIR]: '¿Tiene pelo rubio?',
   [QuestionKey.HAS_BLUE_EYES]: '¿Tiene ojos azules?',
   [QuestionKey.HAS_EARRINGS]: '¿Tiene aretes?',
+  [QuestionKey.IS_MALE]: '¿Es hombre?',
+  [QuestionKey.IS_FEMALE]: '¿Es mujer?',
+  [QuestionKey.IS_BALD]: '¿Es calvo?',
+  [QuestionKey.HAS_FAIR_SKIN]: '¿Es de tez clara?',
+  [QuestionKey.HAS_DARK_SKIN]: '¿Es de tez oscura?',
 }
 
 interface PageProps {
@@ -83,6 +88,8 @@ export default function GamePage({ params }: PageProps) {
   const [latestOpponentQuestion, setLatestOpponentQuestion] = useState<OpponentQuestionSummary | null>(null)
   const [pendingQuestion, setPendingQuestion] = useState<PendingQuestionState | null>(null)
   const [nowMs, setNowMs] = useState<number>(Date.now())
+  const [activeTab, setActiveTab] = useState<ActionTab>('question')
+  const [selectedGuessCharacterId, setSelectedGuessCharacterId] = useState<string | null>(null)
 
   const myPlayerId = playerIdRef.current
   const isMyTurn = !!myPlayerId && currentTurnPlayerId === myPlayerId
@@ -188,6 +195,21 @@ export default function GamePage({ params }: PageProps) {
             correct: Boolean(message.payload.correct),
           },
         ])
+        setSelectedGuessCharacterId(null)
+        setActiveTab('question')
+        return
+      }
+
+      if (message.type === 'auto_action_triggered' && message.payload.gameId === gameId) {
+        const byMe = message.payload.playerId === playerIdRef.current
+        const actionLabel = message.payload.action === 'guess_character' ? 'adivinanza automática' : 'pregunta automática'
+        setLogEntries((prev) => [
+          ...prev,
+          {
+            type: 'event',
+            message: `${byMe ? 'Tu turno' : 'Turno del oponente'}: ${actionLabel} por 30s de inactividad.`,
+          },
+        ])
         return
       }
 
@@ -264,6 +286,10 @@ export default function GamePage({ params }: PageProps) {
     })
   }
 
+  function confirmGuessFromCard(characterId: string) {
+    sendGuessCharacter(characterId)
+  }
+
   function sendAnswerQuestion(answer: boolean) {
     wsClientRef.current?.send({
       type: 'answer_question',
@@ -291,6 +317,9 @@ export default function GamePage({ params }: PageProps) {
     : 0
   const isDefenderWaiting = !!pendingQuestion && pendingQuestion.defenderPlayerId === myPlayerId
   const hasPendingQuestion = !!pendingQuestion
+  const selectedGuessCharacterName = selectedGuessCharacterId
+    ? board.characters.find((character) => character.characterId === selectedGuessCharacterId)?.displayName ?? null
+    : null
 
   const opponentQuestionNote = pendingQuestion
     ? isDefenderWaiting
@@ -337,19 +366,30 @@ export default function GamePage({ params }: PageProps) {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px] lg:items-start">
         <section>
           <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Tu tablero
+            Tablero de candidatos
           </h2>
           <BoardGrid
             board={board}
             difficulty={fromWireDifficulty(difficulty)}
             secretCharacterId={secretCharacterId}
             eliminatedIds={[]}
+            selectable={isMyTurn && gameStatus === 'in_progress' && !hasPendingQuestion && activeTab === 'guess'}
+            selectedId={selectedGuessCharacterId ?? undefined}
+            onSelect={setSelectedGuessCharacterId}
+            onConfirmSelected={confirmGuessFromCard}
           />
         </section>
 
         <aside className="flex flex-col gap-4 lg:sticky lg:top-6">
           <ActionPanel
             isMyTurn={isMyTurn && gameStatus === 'in_progress' && !hasPendingQuestion}
+            activeTab={activeTab}
+            onTabChange={(tab) => {
+              setActiveTab(tab)
+              if (tab !== 'guess') {
+                setSelectedGuessCharacterId(null)
+              }
+            }}
             pendingQuestion={
               isDefenderWaiting
                 ? {
@@ -358,13 +398,9 @@ export default function GamePage({ params }: PageProps) {
                 }
                 : null
             }
-            opponentCharacterOptions={board.characters.map(({ characterId, displayName }) => ({
-              characterId,
-              displayName,
-            }))}
+            selectedGuessCharacterName={selectedGuessCharacterName}
             onAskQuestion={sendAskQuestion}
             onAnswerQuestion={sendAnswerQuestion}
-            onGuessCharacter={sendGuessCharacter}
           />
           <GameLog entries={logEntries} />
         </aside>

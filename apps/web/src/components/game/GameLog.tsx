@@ -11,6 +11,11 @@ const QUESTION_LABELS: Record<QuestionKey, string> = {
   [QuestionKey.HAS_BLONDE_HAIR]: '¿Tiene pelo rubio?',
   [QuestionKey.HAS_BLUE_EYES]:   '¿Tiene ojos azules?',
   [QuestionKey.HAS_EARRINGS]:    '¿Tiene aretes?',
+  [QuestionKey.IS_MALE]:         '¿Es hombre?',
+  [QuestionKey.IS_FEMALE]:       '¿Es mujer?',
+  [QuestionKey.IS_BALD]:         '¿Es calvo?',
+  [QuestionKey.HAS_FAIR_SKIN]:   '¿Es de tez clara?',
+  [QuestionKey.HAS_DARK_SKIN]:   '¿Es de tez oscura?',
 }
 
 export type LogEntry =
