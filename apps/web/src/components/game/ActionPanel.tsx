@@ -2,25 +2,12 @@
 
 import { useState } from 'react'
 import { QuestionKey } from '@/lib/protocol'
+import { ACTIVE_QUESTION_KEYS, QUESTION_LABELS } from '@/lib/questions'
 import { AttributeBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
 
 export type ActionTab = 'question' | 'guess'
-
-const QUESTION_LABELS: Record<QuestionKey, string> = {
-  [QuestionKey.USES_GLASSES]:    '¿Usa lentes?',
-  [QuestionKey.HAS_BEARD]:       '¿Tiene barba?',
-  [QuestionKey.HAS_HAT]:         '¿Usa sombrero?',
-  [QuestionKey.HAS_BLONDE_HAIR]: '¿Tiene pelo rubio?',
-  [QuestionKey.HAS_BLUE_EYES]:   '¿Tiene ojos azules?',
-  [QuestionKey.HAS_EARRINGS]:    '¿Tiene aretes?',
-  [QuestionKey.IS_MALE]:         '¿Es hombre?',
-  [QuestionKey.IS_FEMALE]:       '¿Es mujer?',
-  [QuestionKey.IS_BALD]:         '¿Es calvo?',
-  [QuestionKey.HAS_FAIR_SKIN]:   '¿Es de tez clara?',
-  [QuestionKey.HAS_DARK_SKIN]:   '¿Es de tez oscura?',
-}
 
 interface PendingQuestion {
   key: QuestionKey
@@ -136,7 +123,7 @@ export function ActionPanel({
       {/* Question options */}
       {activeTab === 'question' && (
         <div className="grid grid-cols-1 gap-2 xs:grid-cols-2">
-          {(Object.values(QuestionKey) as QuestionKey[]).map((key) => (
+          {ACTIVE_QUESTION_KEYS.map((key) => (
             <button
               key={key}
               disabled={!isMyTurn}

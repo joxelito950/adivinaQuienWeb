@@ -6,101 +6,60 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 @Component
 public class CharacterCatalog {
 
-    private static final List<String> IMAGE_FILES = List.of(
-            "chica-01.png",
-            "chica-14.png",
-            "chica-20.png",
-            "chica-24.png",
-            "chica-25.png",
-            "chica-27.png",
-            "chica-30.png",
-            "chica-31.png",
-            "chica-32.png",
-            "chica-33.png",
-            "chica-34.png",
-            "chica-35.png",
-            "chica-37.png",
-            "chica-38.png",
-            "chico-02.png",
-            "chico-03.png",
-            "Chico-04.png",
-            "chico-05.png",
-            "chico-06.png",
-            "chico-07.png",
-            "chico-08.png",
-            "chico-09.png",
-            "chico-10.png",
-            "chico-11.png",
-            "chico-12.png",
-            "chico-13.png",
-            "chico-15.png",
-            "chico-16.png",
-            "chico-17.png",
-            "chico-18.png",
-            "chico-21.png",
-            "chico-22.png",
-            "chico-23.png",
-            "chico-25.png",
-            "chico-28.png",
-            "chico-29.png",
-            "chico-36.png"
+    private static final List<CharacterDefinition> DEFINITIONS = List.of(
+            // Chicas
+            female("chica-01.png", "Camila", QuestionKey.USES_GLASSES),
+            female("chica-14.png", "Ines", QuestionKey.HAS_EARRINGS),
+            female("chica-20.png", "Valeria", QuestionKey.HAS_EARRINGS),
+            female("chica-24.png", "Sofia", QuestionKey.HAS_EARRINGS),
+            female("chica-25.png", "Paula", QuestionKey.IS_BALD, QuestionKey.HAS_EARRINGS),
+            female("chica-27.png", "Luna", QuestionKey.HAS_HAT, QuestionKey.HAS_EARRINGS),
+            female("chica-30.png", "Marina", QuestionKey.HAS_HAT, QuestionKey.HAS_EARRINGS),
+            female("chica-31.png", "Elena", QuestionKey.HAS_HAT, QuestionKey.HAS_EARRINGS),
+            female("chica-32.png", "Daniela", QuestionKey.HAS_HAT),
+            female("chica-33.png", "Natalia", QuestionKey.HAS_HAT),
+            female("chica-34.png", "Alicia", QuestionKey.HAS_HAT),
+            female("chica-35.png", "Laura", QuestionKey.HAS_HAT),
+            female("chica-37.png", "Clara"),
+            female("chica-38.png", "Marta"),
+
+            // Chicos
+            male("chico-02.png", "Juan", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS),
+            male("chico-03.png", "Diego", QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS),
+            male("Chico-04.png", "Mateo", QuestionKey.USES_GLASSES),
+            male("chico-05.png", "Nicolas", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS),
+            male("chico-06.png", "Tomas", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS),
+            male("chico-07.png", "Andres", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS),
+            male("chico-08.png", "Bruno", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS),
+            male("chico-09.png", "Lucas", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS),
+            male("chico-10.png", "Martin", QuestionKey.HAS_HAT, QuestionKey.USES_GLASSES, QuestionKey.HAS_EARRINGS),
+            male("chico-11.png", "Adrian", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS),
+            male("chico-12.png", "Sergio", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS),
+            male("chico-13.png", "Pablo", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS),
+            male("chico-15.png", "Hugo", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS),
+            male("chico-16.png", "Ruben", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS),
+            male("chico-17.png", "Cesar", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS),
+            male("chico-18.png", "Javier", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS),
+            male("chico-21.png", "Guillermo", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS),
+            male("chico-22.png", "Alvaro", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS),
+            male("chico-23.png", "Ivan", QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS),
+            male("chico-25.png", "Raul", QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS),
+            male("chico-28.png", "Leo", QuestionKey.IS_BALD, QuestionKey.USES_GLASSES),
+            male("chico-29.png", "Gabriel"),
+            male("chico-36.png", "Miguel", QuestionKey.IS_BALD)
     );
-
-            private static final List<String> DISPLAY_NAMES = List.of(
-                "Camila",
-                "Ines",
-                "Valeria",
-                "Sofia",
-                "Paula",
-                "Luna",
-                "Marina",
-                "Elena",
-                "Daniela",
-                "Natalia",
-                "Alicia",
-                "Laura",
-                "Clara",
-                "Marta",
-                "Juan",
-                "Diego",
-                "Mateo",
-                "Nicolas",
-                "Tomas",
-                "Andres",
-                "Bruno",
-                "Lucas",
-                "Martin",
-                "Adrian",
-                "Sergio",
-                "Pablo",
-                "Hugo",
-                "Ruben",
-                "Cesar",
-                "Javier",
-                "Guillermo",
-                "Alvaro",
-                "Ivan",
-                "Raul",
-                "Leo",
-                "Gabriel",
-                "Miguel"
-            );
-
-            private static final Map<String, Set<QuestionKey>> ATTRIBUTE_OVERRIDES = Map.of(
-                // Ajuste confirmado por UX: Chico 16 debe responder "si" a barba.
-                "chico-16.png", EnumSet.of(QuestionKey.HAS_BEARD)
-            );
 
     private final List<CharacterCard> characters;
 
     public CharacterCatalog() {
+        validateDefinitions();
         this.characters = createCatalog();
     }
 
@@ -110,49 +69,63 @@ public class CharacterCatalog {
 
     private List<CharacterCard> createCatalog() {
         List<CharacterCard> list = new ArrayList<>();
-        QuestionKey[] keys = QuestionKey.values();
-        for (int i = 1; i <= IMAGE_FILES.size(); i++) {
-            String imageFile = IMAGE_FILES.get(i - 1);
-            String displayName = DISPLAY_NAMES.get(i - 1);
-            Set<QuestionKey> attrs = EnumSet.noneOf(QuestionKey.class);
-            for (int bit = 0; bit < keys.length; bit++) {
-                // Genera atributos de forma determinista para mantener tests estables.
-                if (((i * 13) >> bit & 1) == 1) {
-                    attrs.add(keys[bit]);
-                }
-            }
-
-            // Normaliza rasgos mutuamente excluyentes para mantener consistencia del tablero.
-            if (imageFile.toLowerCase().startsWith("chica-")) {
-                attrs.remove(QuestionKey.IS_MALE);
-                attrs.add(QuestionKey.IS_FEMALE);
-            } else {
-                attrs.remove(QuestionKey.IS_FEMALE);
-                attrs.add(QuestionKey.IS_MALE);
-            }
-
-            if (i % 4 == 0) {
-                attrs.remove(QuestionKey.HAS_FAIR_SKIN);
-                attrs.add(QuestionKey.HAS_DARK_SKIN);
-            } else {
-                attrs.remove(QuestionKey.HAS_DARK_SKIN);
-                attrs.add(QuestionKey.HAS_FAIR_SKIN);
-            }
-
-            if (i % 6 == 0) {
-                attrs.add(QuestionKey.IS_BALD);
-            } else {
-                attrs.remove(QuestionKey.IS_BALD);
-            }
-
-            Set<QuestionKey> override = ATTRIBUTE_OVERRIDES.get(imageFile);
-            if (override != null) {
-                attrs.addAll(override);
-            }
-            String imageUrl = "/characters/png/" + imageFile;
-            list.add(new CharacterCard("char-" + i, displayName, imageUrl, attrs));
+        for (int i = 1; i <= DEFINITIONS.size(); i++) {
+            CharacterDefinition definition = DEFINITIONS.get(i - 1);
+            String imageUrl = "/characters/png/" + definition.imageFile();
+            list.add(new CharacterCard("char-" + i, definition.displayName(), imageUrl, Set.copyOf(definition.attributes())));
         }
         return list;
+    }
+
+    private static void validateDefinitions() {
+        if (DEFINITIONS.size() != 37) {
+            throw new IllegalStateException("Character catalog must define exactly 37 characters");
+        }
+
+        Set<String> imageFiles = new HashSet<>();
+        Set<String> displayNames = new HashSet<>();
+
+        for (CharacterDefinition definition : DEFINITIONS) {
+            if (!imageFiles.add(definition.imageFile())) {
+                throw new IllegalStateException("Duplicated image file in character catalog: " + definition.imageFile());
+            }
+            if (!displayNames.add(definition.displayName())) {
+                throw new IllegalStateException("Duplicated display name in character catalog: " + definition.displayName());
+            }
+
+            boolean male = definition.attributes().contains(QuestionKey.IS_MALE);
+            boolean female = definition.attributes().contains(QuestionKey.IS_FEMALE);
+            if (male == female) {
+                throw new IllegalStateException("Each character must have exactly one gender: " + definition.imageFile());
+            }
+
+            String normalizedFile = definition.imageFile().toLowerCase();
+            if (normalizedFile.startsWith("chica-") && !female) {
+                throw new IllegalStateException("Female image must contain IS_FEMALE: " + definition.imageFile());
+            }
+            if (normalizedFile.startsWith("chico-") && !male) {
+                throw new IllegalStateException("Male image must contain IS_MALE: " + definition.imageFile());
+            }
+        }
+    }
+
+    private static CharacterDefinition female(String imageFile, String displayName, QuestionKey... extra) {
+        Set<QuestionKey> attributes = EnumSet.of(QuestionKey.IS_FEMALE);
+        for (QuestionKey key : extra) {
+            attributes.add(key);
+        }
+        return new CharacterDefinition(imageFile, displayName, attributes);
+    }
+
+    private static CharacterDefinition male(String imageFile, String displayName, QuestionKey... extra) {
+        Set<QuestionKey> attributes = EnumSet.of(QuestionKey.IS_MALE);
+        for (QuestionKey key : extra) {
+            attributes.add(key);
+        }
+        return new CharacterDefinition(imageFile, displayName, attributes);
+    }
+
+    private record CharacterDefinition(String imageFile, String displayName, Set<QuestionKey> attributes) {
     }
 }
 

@@ -2,21 +2,8 @@
 
 import { useState } from 'react'
 import { QuestionKey } from '@/lib/protocol'
+import { QUESTION_LABELS } from '@/lib/questions'
 import { cn } from '@/lib/utils'
-
-const QUESTION_LABELS: Record<QuestionKey, string> = {
-  [QuestionKey.USES_GLASSES]:    '¿Usa lentes?',
-  [QuestionKey.HAS_BEARD]:       '¿Tiene barba?',
-  [QuestionKey.HAS_HAT]:         '¿Usa sombrero?',
-  [QuestionKey.HAS_BLONDE_HAIR]: '¿Tiene pelo rubio?',
-  [QuestionKey.HAS_BLUE_EYES]:   '¿Tiene ojos azules?',
-  [QuestionKey.HAS_EARRINGS]:    '¿Tiene aretes?',
-  [QuestionKey.IS_MALE]:         '¿Es hombre?',
-  [QuestionKey.IS_FEMALE]:       '¿Es mujer?',
-  [QuestionKey.IS_BALD]:         '¿Es calvo?',
-  [QuestionKey.HAS_FAIR_SKIN]:   '¿Es de tez clara?',
-  [QuestionKey.HAS_DARK_SKIN]:   '¿Es de tez oscura?',
-}
 
 export type LogEntry =
   | { type: 'question'; by: string; key: QuestionKey; answer: boolean }

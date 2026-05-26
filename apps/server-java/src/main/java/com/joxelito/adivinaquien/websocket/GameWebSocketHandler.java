@@ -7,6 +7,7 @@ import com.joxelito.adivinaquien.engine.GameActionException;
 import com.joxelito.adivinaquien.engine.GameService;
 import com.joxelito.adivinaquien.engine.GuessResult;
 import com.joxelito.adivinaquien.engine.PendingQuestionPrompt;
+import com.joxelito.adivinaquien.engine.QuestionPolicy;
 import com.joxelito.adivinaquien.engine.QuestionResult;
 import com.joxelito.adivinaquien.matchmaking.MatchParticipant;
 import com.joxelito.adivinaquien.matchmaking.MatchStarted;
@@ -54,6 +55,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
     private final MatchmakingService matchmakingService;
     private final GameService gameService;
     private final DummyPlayerService dummyPlayerService;
+    private final QuestionPolicy questionPolicy;
     private final AppProperties appProperties;
 
     private final Map<String, WebSocketSession> sessionById = new ConcurrentHashMap<>();
@@ -70,12 +72,14 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             MatchmakingService matchmakingService,
             GameService gameService,
             DummyPlayerService dummyPlayerService,
+            QuestionPolicy questionPolicy,
             AppProperties appProperties
     ) {
         this.objectMapper = objectMapper;
         this.matchmakingService = matchmakingService;
         this.gameService = gameService;
         this.dummyPlayerService = dummyPlayerService;
+        this.questionPolicy = questionPolicy;
         this.appProperties = appProperties;
     }
 
@@ -169,6 +173,11 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         String gameId = getRequiredText(payload, GAME_ID);
         String playerId = getRequiredText(payload, PLAYER_ID);
         QuestionKey questionKey = QuestionKey.fromWireValue(getRequiredText(payload, QUESTION_KEY));
+
+        if (!questionPolicy.isActive(questionKey)) {
+            throw new GameActionException("Question is temporarily disabled: " + questionKey.toWireValue());
+        }
+
         cancelPlayerInactivityTimeout(gameId);
 
         PendingQuestionPrompt prompt = gameService.askQuestion(gameId, playerId, questionKey);

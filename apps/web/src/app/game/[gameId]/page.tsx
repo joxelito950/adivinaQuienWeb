@@ -8,6 +8,7 @@ import { GameLog } from '@/components/game/GameLog'
 import type { LogEntry } from '@/components/game/GameLog'
 import { Badge } from '@/components/ui/Badge'
 import { getPlayerId } from '@/lib/player'
+import { QUESTION_LABELS } from '@/lib/questions'
 import { createWsClient, WsClient } from '@/lib/ws-client'
 import {
   Board,
@@ -17,20 +18,6 @@ import {
   QuestionKey,
   ServerMessage,
 } from '@/lib/protocol'
-
-const QUESTION_LABELS: Record<QuestionKey, string> = {
-  [QuestionKey.USES_GLASSES]: '¿Usa lentes?',
-  [QuestionKey.HAS_BEARD]: '¿Tiene barba?',
-  [QuestionKey.HAS_HAT]: '¿Usa sombrero?',
-  [QuestionKey.HAS_BLONDE_HAIR]: '¿Tiene pelo rubio?',
-  [QuestionKey.HAS_BLUE_EYES]: '¿Tiene ojos azules?',
-  [QuestionKey.HAS_EARRINGS]: '¿Tiene aretes?',
-  [QuestionKey.IS_MALE]: '¿Es hombre?',
-  [QuestionKey.IS_FEMALE]: '¿Es mujer?',
-  [QuestionKey.IS_BALD]: '¿Es calvo?',
-  [QuestionKey.HAS_FAIR_SKIN]: '¿Es de tez clara?',
-  [QuestionKey.HAS_DARK_SKIN]: '¿Es de tez oscura?',
-}
 
 interface PageProps {
   params: Promise<{ gameId: string }>
