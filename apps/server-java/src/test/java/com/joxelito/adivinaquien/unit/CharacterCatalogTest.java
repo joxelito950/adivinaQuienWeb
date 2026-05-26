@@ -18,10 +18,12 @@ class CharacterCatalogTest {
         var cards = catalog.allCharacters();
 
         assertEquals(37, cards.size());
-        assertEquals("char-1", cards.get(0).characterId());
+        assertEquals("char-1", cards.getFirst().characterId());
         assertEquals("char-37", cards.get(36).characterId());
-        assertEquals("Chica 01", cards.get(0).displayName());
+        assertEquals("Camila", cards.getFirst().displayName());
         assertTrue(cards.stream().noneMatch(card -> card.displayName().startsWith("Character ")));
+        assertTrue(cards.stream().noneMatch(card -> card.displayName().toLowerCase().startsWith("chica ")));
+        assertTrue(cards.stream().noneMatch(card -> card.displayName().toLowerCase().startsWith("chico ")));
 
         Set<String> ids = cards.stream().map(card -> card.characterId()).collect(java.util.stream.Collectors.toSet());
         assertEquals(37, ids.size());
@@ -33,7 +35,7 @@ class CharacterCatalogTest {
         });
 
         var chico16 = cards.stream()
-                .filter(card -> "chico 16".equalsIgnoreCase(card.displayName()))
+            .filter(card -> "/characters/png/chico-16.png".equals(card.imageUrl()))
                 .findFirst()
                 .orElseThrow();
         assertTrue(chico16.attributes().contains(QuestionKey.HAS_BEARD));

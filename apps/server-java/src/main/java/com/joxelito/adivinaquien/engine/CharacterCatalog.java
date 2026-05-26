@@ -53,6 +53,46 @@ public class CharacterCatalog {
             "chico-36.png"
     );
 
+            private static final List<String> DISPLAY_NAMES = List.of(
+                "Camila",
+                "Ines",
+                "Valeria",
+                "Sofia",
+                "Paula",
+                "Luna",
+                "Marina",
+                "Elena",
+                "Daniela",
+                "Natalia",
+                "Alicia",
+                "Laura",
+                "Clara",
+                "Marta",
+                "Juan",
+                "Diego",
+                "Mateo",
+                "Nicolas",
+                "Tomas",
+                "Andres",
+                "Bruno",
+                "Lucas",
+                "Martin",
+                "Adrian",
+                "Sergio",
+                "Pablo",
+                "Hugo",
+                "Ruben",
+                "Cesar",
+                "Javier",
+                "Guillermo",
+                "Alvaro",
+                "Ivan",
+                "Raul",
+                "Leo",
+                "Gabriel",
+                "Miguel"
+            );
+
             private static final Map<String, Set<QuestionKey>> ATTRIBUTE_OVERRIDES = Map.of(
                 // Ajuste confirmado por UX: Chico 16 debe responder "si" a barba.
                 "chico-16.png", EnumSet.of(QuestionKey.HAS_BEARD)
@@ -73,6 +113,7 @@ public class CharacterCatalog {
         QuestionKey[] keys = QuestionKey.values();
         for (int i = 1; i <= IMAGE_FILES.size(); i++) {
             String imageFile = IMAGE_FILES.get(i - 1);
+            String displayName = DISPLAY_NAMES.get(i - 1);
             Set<QuestionKey> attrs = EnumSet.noneOf(QuestionKey.class);
             for (int bit = 0; bit < keys.length; bit++) {
                 // Genera atributos de forma determinista para mantener tests estables.
@@ -85,14 +126,9 @@ public class CharacterCatalog {
                 attrs = EnumSet.copyOf(override);
             }
             String imageUrl = "/characters/png/" + imageFile;
-            list.add(new CharacterCard("char-" + i, toDisplayName(imageFile), imageUrl, attrs));
+            list.add(new CharacterCard("char-" + i, displayName, imageUrl, attrs));
         }
         return list;
-    }
-
-    private String toDisplayName(String fileName) {
-        String baseName = fileName.replace(".png", "").replace('-', ' ').toLowerCase();
-        return Character.toUpperCase(baseName.charAt(0)) + baseName.substring(1);
     }
 }
 
