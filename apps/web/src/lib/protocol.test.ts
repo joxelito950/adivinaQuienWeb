@@ -51,6 +51,42 @@ describe('protocol helpers', () => {
     expect(parsed?.payload).toEqual({})
   })
 
+  it('parses question_asked payloads', () => {
+    const raw = JSON.stringify({
+      type: 'question_asked',
+      payload: {
+        gameId: 'g-1',
+        playerId: 'p2',
+        questionKey: 'USES_GLASSES',
+      },
+    })
+
+    const parsed = parseServerMessage(raw)
+    const payload = parsed?.payload as { questionKey?: string; playerId?: string }
+    expect(parsed?.type).toBe('question_asked')
+    expect(payload.playerId).toBe('p2')
+    expect(payload.questionKey).toBe('USES_GLASSES')
+  })
+
+  it('parses question_pending payloads', () => {
+    const raw = JSON.stringify({
+      type: 'question_pending',
+      payload: {
+        gameId: 'g-1',
+        askerPlayerId: 'p1',
+        defenderPlayerId: 'p2',
+        questionKey: 'HAS_BEARD',
+        timeoutSeconds: 15,
+      },
+    })
+
+    const parsed = parseServerMessage(raw)
+    const payload = parsed?.payload as { timeoutSeconds?: number; defenderPlayerId?: string }
+    expect(parsed?.type).toBe('question_pending')
+    expect(payload.defenderPlayerId).toBe('p2')
+    expect(payload.timeoutSeconds).toBe(15)
+  })
+
   it('keeps imageUrl in game_started board characters', () => {
     const raw = JSON.stringify({
       type: 'game_started',

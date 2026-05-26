@@ -65,6 +65,7 @@ export interface WireMessage<T extends string, P> {
 export type JoinQueueCommand      = WireMessage<'join_queue',      { playerId: string; difficulty: string }>
 export type LeaveQueueCommand     = WireMessage<'leave_queue',     { playerId: string }>
 export type AskQuestionCommand    = WireMessage<'ask_question',    { gameId: string; playerId: string; questionKey: string }>
+export type AnswerQuestionCommand = WireMessage<'answer_question', { gameId: string; playerId: string; answer: boolean }>
 export type GuessCharacterCommand = WireMessage<'guess_character', { gameId: string; playerId: string; characterId: string }>
 export type ReconnectGameCommand  = WireMessage<'reconnect_game',  { gameId: string; playerId: string }>
 export type PingCommand           = WireMessage<'ping',            Record<string, never>>
@@ -73,6 +74,7 @@ export type ClientMessage =
   | JoinQueueCommand
   | LeaveQueueCommand
   | AskQuestionCommand
+  | AnswerQuestionCommand
   | GuessCharacterCommand
   | ReconnectGameCommand
   | PingCommand
@@ -101,11 +103,26 @@ export type TurnChangedEvent = WireMessage<'turn_changed', {
   currentTurnPlayerId: string
 }>
 
+export type QuestionAskedEvent = WireMessage<'question_asked', {
+  gameId: string
+  playerId: string
+  questionKey: string
+}>
+
+export type QuestionPendingEvent = WireMessage<'question_pending', {
+  gameId: string
+  askerPlayerId: string
+  defenderPlayerId: string
+  questionKey: string
+  timeoutSeconds: number
+}>
+
 export type QuestionAnsweredEvent = WireMessage<'question_answered', {
   gameId:           string
   playerId:         string
   questionKey:     string
   answer:          boolean
+  timeoutFallback?: boolean
 }>
 
 export type GuessResultEvent = WireMessage<'guess_result', {
@@ -152,6 +169,8 @@ export type ServerMessage =
   | QueueWaitingEvent
   | GameStartedEvent
   | TurnChangedEvent
+  | QuestionAskedEvent
+  | QuestionPendingEvent
   | QuestionAnsweredEvent
   | GuessResultEvent
   | InvalidActionEvent

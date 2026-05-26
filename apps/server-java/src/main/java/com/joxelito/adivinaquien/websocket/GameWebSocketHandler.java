@@ -6,6 +6,7 @@ import com.joxelito.adivinaquien.dummy.DummyPlayerService;
 import com.joxelito.adivinaquien.engine.GameActionException;
 import com.joxelito.adivinaquien.engine.GameService;
 import com.joxelito.adivinaquien.engine.GuessResult;
+import com.joxelito.adivinaquien.engine.PendingQuestionPrompt;
 import com.joxelito.adivinaquien.engine.QuestionResult;
 import com.joxelito.adivinaquien.matchmaking.MatchParticipant;
 import com.joxelito.adivinaquien.matchmaking.MatchStarted;
@@ -30,6 +31,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 @Component
 public class GameWebSocketHandler extends TextWebSocketHandler {
@@ -53,6 +55,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
     private final Map<String, WebSocketSession> sessionById = new ConcurrentHashMap<>();
     private final Map<String, String> playerBySessionId = new ConcurrentHashMap<>();
     private final Map<String, String> sessionIdByPlayer = new ConcurrentHashMap<>();
+    private final Map<String, Future<?>> questionTimeoutTaskByGame = new ConcurrentHashMap<>();
     private final ExecutorService virtualExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
     public GameWebSocketHandler(
@@ -122,6 +125,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             case "join_queue" -> handleJoinQueue(session, message.payload());
             case "leave_queue" -> handleLeaveQueue(session, message.payload());
             case "ask_question" -> handleAskQuestion(message.payload());
+            case "answer_question" -> handleAnswerQuestion(message.payload());
             case "guess_character" -> handleGuessCharacter(message.payload());
             case "reconnect_game" -> handleReconnectGame(session, message.payload());
             case "ping" -> send(session, "pong", message.correlationId(), Map.of("ts", Instant.now().toString()));
@@ -156,14 +160,53 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         String playerId = getRequiredText(payload, PLAYER_ID);
         QuestionKey questionKey = QuestionKey.fromWireValue(getRequiredText(payload, QUESTION_KEY));
 
-        QuestionResult result = gameService.askQuestion(gameId, playerId, questionKey);
+        PendingQuestionPrompt prompt = gameService.askQuestion(gameId, playerId, questionKey);
         GameSession game = gameService.getGameById(gameId);
+        if (game == null) {
+            return;
+        }
+
+        broadcast(game, "question_asked", Map.of(
+            GAME_ID, gameId,
+            PLAYER_ID, playerId,
+            QUESTION_KEY, prompt.questionKey()
+        ));
+
+        broadcast(game, "question_pending", Map.of(
+                GAME_ID, prompt.gameId(),
+                "askerPlayerId", prompt.askerPlayerId(),
+                "defenderPlayerId", prompt.defenderPlayerId(),
+                QUESTION_KEY, prompt.questionKey(),
+                "timeoutSeconds", prompt.timeoutSeconds()
+        ));
+
+        scheduleQuestionTimeout(prompt);
+
+        PlayerState defender = game.playerById(prompt.defenderPlayerId());
+        if (defender != null && defender.getType() == PlayerType.DUMMY) {
+            scheduleDummyAnswer(prompt);
+        }
+    }
+
+    private void handleAnswerQuestion(JsonNode payload) {
+        String gameId = getRequiredText(payload, GAME_ID);
+        String playerId = getRequiredText(payload, PLAYER_ID);
+        boolean answer = getRequiredBoolean(payload, ANSWER);
+
+        QuestionResult result = gameService.answerQuestion(gameId, playerId, answer, false);
+        cancelQuestionTimeout(gameId);
+
+        GameSession game = gameService.getGameById(gameId);
+        if (game == null) {
+            return;
+        }
 
         broadcast(game, "question_answered", Map.of(
                 GAME_ID, gameId,
-                PLAYER_ID, playerId,
+            PLAYER_ID, result.playerId(),
                 QUESTION_KEY, result.questionKey(),
-                ANSWER, result.answer()
+                ANSWER, result.answer(),
+                "timeoutFallback", result.timeoutFallback()
         ));
 
         broadcast(game, TURN_CHANGED, Map.of(GAME_ID, gameId, CURRENT_TURN_PLAYER_ID, result.nextTurnPlayerId()));
@@ -207,6 +250,17 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                 CURRENT_TURN_PLAYER_ID, game.getCurrentTurnPlayerId(),
                 "status", game.getStatus().name().toLowerCase()
         ));
+
+        PendingQuestionPrompt pending = gameService.getPendingQuestion(gameId);
+        if (pending != null) {
+            send(session, "question_pending", null, Map.of(
+                GAME_ID, pending.gameId(),
+                "askerPlayerId", pending.askerPlayerId(),
+                "defenderPlayerId", pending.defenderPlayerId(),
+                QUESTION_KEY, pending.questionKey(),
+                "timeoutSeconds", pending.timeoutSeconds()
+            ));
+        }
     }
 
     private void onMatchStarted(MatchStarted matchStarted) {
@@ -264,24 +318,111 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             try {
                 Thread.sleep(appProperties.getDummyActionDelayMillis());
                 QuestionKey key = dummyPlayerService.chooseQuestion(game.getDifficulty());
-                QuestionResult questionResult = gameService.askQuestion(game.getGameId(), current.getPlayerId(), key);
+                PendingQuestionPrompt prompt = gameService.askQuestion(game.getGameId(), current.getPlayerId(), key);
                 GameSession updatedGame = gameService.getGameById(game.getGameId());
-                broadcast(updatedGame, "question_answered", Map.of(
-                        GAME_ID, game.getGameId(),
-                        PLAYER_ID, current.getPlayerId(),
-                        QUESTION_KEY, questionResult.questionKey(),
-                        ANSWER, questionResult.answer()
+                if (updatedGame == null) {
+                    return;
+                }
+
+                broadcast(updatedGame, "question_asked", Map.of(
+                        GAME_ID, prompt.gameId(),
+                        PLAYER_ID, prompt.askerPlayerId(),
+                        QUESTION_KEY, prompt.questionKey()
                 ));
-                broadcast(updatedGame, TURN_CHANGED, Map.of(
-                        GAME_ID, game.getGameId(),
-                        CURRENT_TURN_PLAYER_ID, questionResult.nextTurnPlayerId()
+                broadcast(updatedGame, "question_pending", Map.of(
+                        GAME_ID, prompt.gameId(),
+                        "askerPlayerId", prompt.askerPlayerId(),
+                        "defenderPlayerId", prompt.defenderPlayerId(),
+                        QUESTION_KEY, prompt.questionKey(),
+                        "timeoutSeconds", prompt.timeoutSeconds()
                 ));
+
+                scheduleQuestionTimeout(prompt);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             } catch (Exception ex) {
                 logger.warn("Dummy action failed", ex);
             }
         });
+    }
+
+    private void scheduleQuestionTimeout(PendingQuestionPrompt prompt) {
+        cancelQuestionTimeout(prompt.gameId());
+        Future<?> task = virtualExecutor.submit(() -> {
+            try {
+                Thread.sleep(prompt.timeoutSeconds() * 1000L);
+                QuestionResult result = gameService.resolvePendingQuestionWithCorrectAnswer(prompt.gameId(), true);
+                if (result == null) {
+                    return;
+                }
+                GameSession game = gameService.getGameById(prompt.gameId());
+                if (game == null) {
+                    return;
+                }
+
+                broadcast(game, "question_answered", Map.of(
+                        GAME_ID, prompt.gameId(),
+                        PLAYER_ID, result.playerId(),
+                        QUESTION_KEY, result.questionKey(),
+                        ANSWER, result.answer(),
+                        "timeoutFallback", result.timeoutFallback()
+                ));
+                broadcast(game, TURN_CHANGED, Map.of(
+                        GAME_ID, prompt.gameId(),
+                        CURRENT_TURN_PLAYER_ID, result.nextTurnPlayerId()
+                ));
+                maybeTriggerDummyTurn(game);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+            } catch (Exception ex) {
+                logger.warn("Question timeout handling failed", ex);
+            } finally {
+                questionTimeoutTaskByGame.remove(prompt.gameId());
+            }
+        });
+        questionTimeoutTaskByGame.put(prompt.gameId(), task);
+    }
+
+    private void scheduleDummyAnswer(PendingQuestionPrompt prompt) {
+        virtualExecutor.submit(() -> {
+            try {
+                Thread.sleep(appProperties.getDummyActionDelayMillis());
+                QuestionResult result = gameService.resolvePendingQuestionWithCorrectAnswer(prompt.gameId(), false);
+                if (result == null) {
+                    return;
+                }
+                cancelQuestionTimeout(prompt.gameId());
+
+                GameSession game = gameService.getGameById(prompt.gameId());
+                if (game == null) {
+                    return;
+                }
+
+                broadcast(game, "question_answered", Map.of(
+                        GAME_ID, prompt.gameId(),
+                        PLAYER_ID, result.playerId(),
+                        QUESTION_KEY, result.questionKey(),
+                        ANSWER, result.answer(),
+                        "timeoutFallback", result.timeoutFallback()
+                ));
+                broadcast(game, TURN_CHANGED, Map.of(
+                        GAME_ID, prompt.gameId(),
+                        CURRENT_TURN_PLAYER_ID, result.nextTurnPlayerId()
+                ));
+                maybeTriggerDummyTurn(game);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+            } catch (Exception ex) {
+                logger.warn("Dummy answer failed", ex);
+            }
+        });
+    }
+
+    private void cancelQuestionTimeout(String gameId) {
+        Future<?> previous = questionTimeoutTaskByGame.remove(gameId);
+        if (previous != null) {
+            previous.cancel(true);
+        }
     }
 
     private void broadcast(GameSession game, String type, Object payload) {
@@ -323,14 +464,24 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
 
     private String getRequiredText(JsonNode payload, String field) {
         JsonNode node = payload == null ? null : payload.get(field);
-        if (node == null || node.isNull() || node.asText().isBlank()) {
+        if (node == null || node.isNull() || !node.isTextual() || node.textValue().isBlank()) {
             throw new GameActionException("Missing field: " + field);
         }
-        return node.asText();
+        return node.textValue();
+    }
+
+    private boolean getRequiredBoolean(JsonNode payload, String field) {
+        JsonNode node = payload == null ? null : payload.get(field);
+        if (node == null || node.isNull() || !node.isBoolean()) {
+            throw new GameActionException("Missing boolean field: " + field);
+        }
+        return node.asBoolean();
     }
 
     @PreDestroy
     public void shutdown() {
+        questionTimeoutTaskByGame.values().forEach(task -> task.cancel(true));
+        questionTimeoutTaskByGame.clear();
         virtualExecutor.shutdownNow();
     }
 }

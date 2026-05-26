@@ -22,26 +22,42 @@ interface CharacterOption {
   displayName:  string
 }
 
+interface PendingQuestion {
+  key: QuestionKey
+  secondsLeft: number
+}
+
 interface ActionPanelProps {
   isMyTurn:                boolean
+  pendingQuestion?:        PendingQuestion | null
   opponentCharacterOptions?: CharacterOption[]
   onAskQuestion?:          (key: QuestionKey) => void
+  onAnswerQuestion?:       (answer: boolean) => void
   onGuessCharacter?:       (characterId: string) => void
   className?:              string
 }
 
 export function ActionPanel({
   isMyTurn,
+  pendingQuestion = null,
   opponentCharacterOptions = [],
   onAskQuestion,
+  onAnswerQuestion,
   onGuessCharacter,
   className,
 }: ActionPanelProps) {
   const [tab, setTab]                     = useState<Tab>('question')
   const [selectedQuestion, setQuestion]   = useState<QuestionKey | null>(null)
   const [selectedCharacter, setCharacter] = useState<string | null>(null)
+  const [selectedAnswer, setSelectedAnswer] = useState<boolean | null>(null)
 
   function handleConfirm() {
+    if (pendingQuestion && selectedAnswer !== null) {
+      onAnswerQuestion?.(selectedAnswer)
+      setSelectedAnswer(null)
+      return
+    }
+
     if (tab === 'question' && selectedQuestion) {
       onAskQuestion?.(selectedQuestion)
       setQuestion(null)
@@ -51,10 +67,14 @@ export function ActionPanel({
     }
   }
 
-  const canConfirm = isMyTurn && (
-    (tab === 'question' && !!selectedQuestion) ||
-    (tab === 'guess'    && !!selectedCharacter)
-  )
+  const canConfirm = pendingQuestion
+    ? selectedAnswer !== null
+    : isMyTurn && (
+      (tab === 'question' && !!selectedQuestion) ||
+      (tab === 'guess'    && !!selectedCharacter)
+    )
+
+  const waitingForOpponentAnswer = !pendingQuestion && !isMyTurn
 
   return (
     <div className={cn('rounded-2xl border border-slate-700 bg-slate-800/60 p-4 shadow-lg', className)}>
@@ -62,6 +82,41 @@ export function ActionPanel({
         Tu acción
       </h2>
 
+      {pendingQuestion ? (
+        <div className="space-y-3">
+          <div className="rounded-xl border border-brand-500/60 bg-brand-900/20 px-3 py-2 text-sm text-brand-200">
+            <p className="font-semibold">Responde la pregunta del oponente</p>
+            <p>{QUESTION_LABELS[pendingQuestion.key]}</p>
+            <p className="mt-1 text-xs text-brand-300">Tiempo restante: {pendingQuestion.secondsLeft}s</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setSelectedAnswer(true)}
+              className={cn(
+                'rounded-xl border px-3 py-2 text-sm font-medium transition-all',
+                selectedAnswer === true
+                  ? 'border-emerald-400 bg-emerald-900/30 text-emerald-200'
+                  : 'border-slate-700 bg-slate-700/40 text-slate-300 hover:border-slate-500 hover:bg-slate-700',
+              )}
+            >
+              Sí
+            </button>
+            <button
+              onClick={() => setSelectedAnswer(false)}
+              className={cn(
+                'rounded-xl border px-3 py-2 text-sm font-medium transition-all',
+                selectedAnswer === false
+                  ? 'border-red-400 bg-red-900/30 text-red-200'
+                  : 'border-slate-700 bg-slate-700/40 text-slate-300 hover:border-slate-500 hover:bg-slate-700',
+              )}
+            >
+              No
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
       {/* Tabs */}
       <div className="mb-4 flex rounded-xl bg-slate-900 p-1 gap-1">
         {(['question', 'guess'] as Tab[]).map((t) => (
@@ -134,19 +189,22 @@ export function ActionPanel({
           )}
         </div>
       )}
+        </>
+      )}
 
       <Button
         className="mt-4 w-full"
         disabled={!canConfirm}
         onClick={handleConfirm}
       >
-        Confirmar acción
+        {pendingQuestion ? 'Confirmar respuesta' : 'Confirmar acción'}
       </Button>
 
-      {!isMyTurn && (
-        <p className="mt-2 text-center text-xs text-slate-500">
-          Esperando el turno del oponente…
-        </p>
+      {waitingForOpponentAnswer && (
+        <div className="mt-2 space-y-1 text-center text-xs text-slate-500">
+          <p>Esperando el turno del oponente…</p>
+          <p>Si recibes una pregunta, deberás responderla antes de 15 segundos.</p>
+        </div>
       )}
     </div>
   )

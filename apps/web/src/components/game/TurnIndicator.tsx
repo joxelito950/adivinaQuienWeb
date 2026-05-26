@@ -3,12 +3,14 @@ import { cn } from '@/lib/utils'
 interface TurnIndicatorProps {
   isMyTurn:      boolean
   opponentName?: string
+  note?:         string | null
   className?:    string
 }
 
 export function TurnIndicator({
   isMyTurn,
   opponentName = 'Oponente',
+  note,
   className,
 }: TurnIndicatorProps) {
   return (
@@ -48,6 +50,11 @@ export function TurnIndicator({
             ? 'Haz una pregunta o adivina el personaje secreto.'
             : 'Esperando la acción del oponente…'}
         </p>
+        {note && (
+          <p className="mt-2 rounded-lg border border-slate-600/80 bg-slate-900/60 px-3 py-2 text-xs text-slate-200 sm:text-sm">
+            {note}
+          </p>
+        )}
       </div>
     </div>
   )

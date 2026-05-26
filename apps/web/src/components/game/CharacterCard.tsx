@@ -46,7 +46,7 @@ export function CharacterCard({
     <Tag
       {...(onClick ? { onClick, type: 'button' as const, 'aria-pressed': isSelected } : {})}
       className={cn(
-        'relative flex flex-col items-center gap-1 rounded-xl border p-2 text-center',
+        'relative flex flex-col items-center gap-2 rounded-xl border p-3 text-center',
         'min-w-0 overflow-hidden transition-all select-none',
         isEliminated
           ? 'border-slate-700/50 bg-slate-800/30 opacity-40 grayscale'
@@ -60,8 +60,8 @@ export function CharacterCard({
       {/* Avatar */}
       <div
         className={cn(
-          'relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full text-base font-bold text-white',
-          'sm:h-12 sm:w-12 sm:text-lg',
+          'relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl text-base font-bold text-white',
+          'sm:h-20 sm:w-20 sm:text-xl',
           !shouldShowImage && color,
         )}
       >
@@ -70,8 +70,8 @@ export function CharacterCard({
             src={imageUrl!}
             alt={character.displayName}
             fill
-            sizes="(max-width: 640px) 36px, 48px"
-            className="object-cover"
+            sizes="(max-width: 640px) 64px, 80px"
+            className="object-contain p-1"
             onError={() => setImageFailed(true)}
           />
         ) : (
@@ -80,7 +80,7 @@ export function CharacterCard({
       </div>
 
       {/* Name */}
-      <span className="w-full truncate text-xs font-medium text-slate-200 sm:text-sm">
+      <span className="w-full truncate text-sm font-semibold text-slate-100 sm:text-base">
         {character.displayName}
       </span>
 

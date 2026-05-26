@@ -18,6 +18,9 @@ public class AppProperties {
     @Min(1)
     private int reconnectTimeoutSeconds = 45;
 
+    @Min(1)
+    private int questionResponseTimeoutSeconds = 15;
+
     @Min(50)
     private int dummyActionDelayMillis = 600;
 

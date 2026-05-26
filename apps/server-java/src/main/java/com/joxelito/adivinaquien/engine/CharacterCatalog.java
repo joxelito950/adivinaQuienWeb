@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Component
@@ -52,6 +53,11 @@ public class CharacterCatalog {
             "chico-36.png"
     );
 
+            private static final Map<String, Set<QuestionKey>> ATTRIBUTE_OVERRIDES = Map.of(
+                // Ajuste confirmado por UX: Chico 16 debe responder "si" a barba.
+                "chico-16.png", EnumSet.of(QuestionKey.HAS_BEARD)
+            );
+
     private final List<CharacterCard> characters;
 
     public CharacterCatalog() {
@@ -66,6 +72,7 @@ public class CharacterCatalog {
         List<CharacterCard> list = new ArrayList<>();
         QuestionKey[] keys = QuestionKey.values();
         for (int i = 1; i <= IMAGE_FILES.size(); i++) {
+            String imageFile = IMAGE_FILES.get(i - 1);
             Set<QuestionKey> attrs = EnumSet.noneOf(QuestionKey.class);
             for (int bit = 0; bit < keys.length; bit++) {
                 // Genera atributos de forma determinista para mantener tests estables.
@@ -73,10 +80,19 @@ public class CharacterCatalog {
                     attrs.add(keys[bit]);
                 }
             }
-            String imageUrl = "/characters/png/" + IMAGE_FILES.get(i - 1);
-            list.add(new CharacterCard("char-" + i, "Character " + i, imageUrl, attrs));
+            Set<QuestionKey> override = ATTRIBUTE_OVERRIDES.get(imageFile);
+            if (override != null) {
+                attrs = EnumSet.copyOf(override);
+            }
+            String imageUrl = "/characters/png/" + imageFile;
+            list.add(new CharacterCard("char-" + i, toDisplayName(imageFile), imageUrl, attrs));
         }
         return list;
+    }
+
+    private String toDisplayName(String fileName) {
+        String baseName = fileName.replace(".png", "").replace('-', ' ').toLowerCase();
+        return Character.toUpperCase(baseName.charAt(0)) + baseName.substring(1);
     }
 }
 

@@ -18,6 +18,15 @@ import {
   ServerMessage,
 } from '@/lib/protocol'
 
+const QUESTION_LABELS: Record<QuestionKey, string> = {
+  [QuestionKey.USES_GLASSES]: '¿Usa lentes?',
+  [QuestionKey.HAS_BEARD]: '¿Tiene barba?',
+  [QuestionKey.HAS_HAT]: '¿Usa sombrero?',
+  [QuestionKey.HAS_BLONDE_HAIR]: '¿Tiene pelo rubio?',
+  [QuestionKey.HAS_BLUE_EYES]: '¿Tiene ojos azules?',
+  [QuestionKey.HAS_EARRINGS]: '¿Tiene aretes?',
+}
+
 interface PageProps {
   params: Promise<{ gameId: string }>
 }
@@ -29,6 +38,19 @@ interface StoredGameSnapshot {
   yourSecretCharacterId: string
   firstTurnPlayerId: string
   opponentType: 'human' | 'dummy'
+}
+
+interface OpponentQuestionSummary {
+  key: QuestionKey
+  answer: boolean | null
+  timeoutFallback?: boolean
+}
+
+interface PendingQuestionState {
+  askerPlayerId: string
+  defenderPlayerId: string
+  key: QuestionKey
+  deadlineMs: number
 }
 
 function readStoredSnapshot(gameId: string): StoredGameSnapshot | null {
@@ -58,9 +80,19 @@ export default function GamePage({ params }: PageProps) {
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error'>('connecting')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [logEntries, setLogEntries] = useState<LogEntry[]>([])
+  const [latestOpponentQuestion, setLatestOpponentQuestion] = useState<OpponentQuestionSummary | null>(null)
+  const [pendingQuestion, setPendingQuestion] = useState<PendingQuestionState | null>(null)
+  const [nowMs, setNowMs] = useState<number>(Date.now())
 
   const myPlayerId = playerIdRef.current
   const isMyTurn = !!myPlayerId && currentTurnPlayerId === myPlayerId
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNowMs(Date.now())
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   useEffect(() => {
     playerIdRef.current = getPlayerId()
@@ -99,9 +131,37 @@ export default function GamePage({ params }: PageProps) {
         return
       }
 
+      if (message.type === 'question_asked' && message.payload.gameId === gameId) {
+        if (message.payload.playerId !== playerIdRef.current) {
+          const key = String(message.payload.questionKey).toUpperCase() as QuestionKey
+          setLatestOpponentQuestion({ key, answer: null })
+        }
+        return
+      }
+
+      if (message.type === 'question_pending' && message.payload.gameId === gameId) {
+        const key = String(message.payload.questionKey).toUpperCase() as QuestionKey
+        const timeoutSeconds = Number(message.payload.timeoutSeconds ?? 15)
+        setPendingQuestion({
+          askerPlayerId: message.payload.askerPlayerId,
+          defenderPlayerId: message.payload.defenderPlayerId,
+          key,
+          deadlineMs: Date.now() + Math.max(0, timeoutSeconds) * 1000,
+        })
+        return
+      }
+
       if (message.type === 'question_answered' && message.payload.gameId === gameId) {
         const key = String(message.payload.questionKey).toUpperCase() as QuestionKey
         const byMe = message.payload.playerId === playerIdRef.current
+        setPendingQuestion(null)
+        if (!byMe) {
+          setLatestOpponentQuestion({
+            key,
+            answer: Boolean(message.payload.answer),
+            timeoutFallback: Boolean(message.payload.timeoutFallback),
+          })
+        }
         setLogEntries((prev) => [
           ...prev,
           {
@@ -204,6 +264,17 @@ export default function GamePage({ params }: PageProps) {
     })
   }
 
+  function sendAnswerQuestion(answer: boolean) {
+    wsClientRef.current?.send({
+      type: 'answer_question',
+      payload: {
+        gameId,
+        playerId: playerIdRef.current,
+        answer,
+      },
+    })
+  }
+
   if (!board || !secretCharacterId) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center gap-3 text-center">
@@ -214,6 +285,22 @@ export default function GamePage({ params }: PageProps) {
       </main>
     )
   }
+
+  const pendingSeconds = pendingQuestion
+    ? Math.max(0, Math.ceil((pendingQuestion.deadlineMs - nowMs) / 1000))
+    : 0
+  const isDefenderWaiting = !!pendingQuestion && pendingQuestion.defenderPlayerId === myPlayerId
+  const hasPendingQuestion = !!pendingQuestion
+
+  const opponentQuestionNote = pendingQuestion
+    ? isDefenderWaiting
+      ? `Responde: ${QUESTION_LABELS[pendingQuestion.key]} (${pendingSeconds}s)`
+      : `Esperando respuesta del oponente: ${QUESTION_LABELS[pendingQuestion.key]} (${pendingSeconds}s)`
+    : latestOpponentQuestion
+      ? latestOpponentQuestion.answer === null
+        ? `Oponente preguntó: ${QUESTION_LABELS[latestOpponentQuestion.key]}`
+        : `Oponente preguntó: ${QUESTION_LABELS[latestOpponentQuestion.key]}. ${latestOpponentQuestion.timeoutFallback ? 'Respuesta automática por timeout' : 'Respuesta manual'}: ${latestOpponentQuestion.answer ? 'Sí' : 'No'}.`
+      : null
 
   return (
     <main className="py-6 sm:py-8 lg:py-10">
@@ -245,7 +332,7 @@ export default function GamePage({ params }: PageProps) {
         </div>
       )}
 
-      <TurnIndicator isMyTurn={isMyTurn} opponentName="Oponente" className="mb-6" />
+      <TurnIndicator isMyTurn={isMyTurn} opponentName="Oponente" note={opponentQuestionNote} className="mb-6" />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px] lg:items-start">
         <section>
@@ -262,12 +349,21 @@ export default function GamePage({ params }: PageProps) {
 
         <aside className="flex flex-col gap-4 lg:sticky lg:top-6">
           <ActionPanel
-            isMyTurn={isMyTurn && gameStatus === 'in_progress'}
+            isMyTurn={isMyTurn && gameStatus === 'in_progress' && !hasPendingQuestion}
+            pendingQuestion={
+              isDefenderWaiting
+                ? {
+                  key: pendingQuestion.key,
+                  secondsLeft: pendingSeconds,
+                }
+                : null
+            }
             opponentCharacterOptions={board.characters.map(({ characterId, displayName }) => ({
               characterId,
               displayName,
             }))}
             onAskQuestion={sendAskQuestion}
+            onAnswerQuestion={sendAnswerQuestion}
             onGuessCharacter={sendGuessCharacter}
           />
           <GameLog entries={logEntries} />

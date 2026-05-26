@@ -15,6 +15,7 @@ import com.joxelito.adivinaquien.matchmaking.MatchStarted;
 import jakarta.annotation.PreDestroy;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -32,16 +33,19 @@ public class GameService {
     private final BoardFactory boardFactory;
     private final GameLockManager gameLockManager;
     private final long reconnectTimeoutSeconds;
+    private final long questionResponseTimeoutSeconds;
     private final ScheduledExecutorService scheduler;
 
     private final Map<String, GameSession> gameById = new ConcurrentHashMap<>();
     private final Map<String, String> gameIdByPlayer = new ConcurrentHashMap<>();
     private final Map<String, ScheduledFuture<?>> abandonTaskByPlayer = new ConcurrentHashMap<>();
+    private final Map<String, PendingQuestionState> pendingQuestionByGame = new ConcurrentHashMap<>();
 
     public GameService(BoardFactory boardFactory, GameLockManager gameLockManager, AppProperties appProperties) {
         this.boardFactory = boardFactory;
         this.gameLockManager = gameLockManager;
         this.reconnectTimeoutSeconds = appProperties.getReconnectTimeoutSeconds();
+        this.questionResponseTimeoutSeconds = appProperties.getQuestionResponseTimeoutSeconds();
         this.scheduler = Executors.newSingleThreadScheduledExecutor();
     }
 
@@ -84,34 +88,90 @@ public class GameService {
         return gameSession;
     }
 
-    public QuestionResult askQuestion(String gameId, String playerId, QuestionKey questionKey) {
+    public PendingQuestionPrompt askQuestion(String gameId, String playerId, QuestionKey questionKey) {
         return gameLockManager.executeSerialized(gameId, () -> {
             GameSession game = getActiveGame(gameId, playerId);
             enforceTurn(game, playerId);
+            ensureNoPendingQuestion(gameId);
 
             PlayerState opponent = game.opponentOf(playerId);
-            String opponentSecret = game.getSecretByPlayer().get(opponent.getPlayerId());
-            CharacterCard opponentCard = game.getBoard().characters().stream()
-                    .filter(card -> card.characterId().equals(opponentSecret))
-                    .findFirst()
-                    .orElseThrow(() -> new GameActionException("Secret character not found"));
+            PendingQuestionState pending = new PendingQuestionState(
+                    playerId,
+                    opponent.getPlayerId(),
+                    questionKey,
+                    Instant.now(),
+                    questionResponseTimeoutSeconds
+            );
+            pendingQuestionByGame.put(gameId, pending);
 
-            boolean answer = opponentCard.hasAttribute(questionKey);
-            game.setCurrentTurnPlayerId(opponent.getPlayerId());
-
-            return new QuestionResult(gameId, playerId, questionKey.toWireValue(), answer, game.getCurrentTurnPlayerId());
+            return new PendingQuestionPrompt(
+                    gameId,
+                    playerId,
+                    opponent.getPlayerId(),
+                    questionKey.toWireValue(),
+                    questionResponseTimeoutSeconds
+            );
         });
+    }
+
+    public QuestionResult answerQuestion(String gameId, String defenderId, boolean answer, boolean timeoutFallback) {
+        return gameLockManager.executeSerialized(gameId, () -> {
+            GameSession game = getActiveGame(gameId, defenderId);
+            PendingQuestionState pending = pendingQuestionByGame.get(gameId);
+            if (pending == null) {
+                throw new GameActionException("There is no pending question");
+            }
+            if (!pending.defenderPlayerId().equals(defenderId)) {
+                throw new GameActionException("Only defender can answer pending question");
+            }
+            return resolvePendingQuestion(gameId, game, pending, answer, timeoutFallback);
+        });
+    }
+
+    public QuestionResult resolvePendingQuestionWithCorrectAnswer(String gameId, boolean timeoutFallback) {
+        return gameLockManager.executeSerialized(gameId, () -> {
+            GameSession game = gameById.get(gameId);
+            if (game == null || game.getStatus() != GameStatus.IN_PROGRESS) {
+                return null;
+            }
+            PendingQuestionState pending = pendingQuestionByGame.get(gameId);
+            if (pending == null) {
+                return null;
+            }
+
+            boolean answer = computeCorrectAnswer(game, pending.defenderPlayerId(), pending.questionKey());
+            return resolvePendingQuestion(gameId, game, pending, answer, timeoutFallback);
+        });
+    }
+
+    public PendingQuestionPrompt getPendingQuestion(String gameId) {
+        PendingQuestionState pending = pendingQuestionByGame.get(gameId);
+        if (pending == null) {
+            return null;
+        }
+
+        long elapsed = Duration.between(pending.askedAt(), Instant.now()).toSeconds();
+        long remaining = Math.max(0, pending.timeoutSeconds() - elapsed);
+        return new PendingQuestionPrompt(
+                gameId,
+                pending.askerPlayerId(),
+                pending.defenderPlayerId(),
+                pending.questionKey().toWireValue(),
+                remaining
+        );
     }
 
     public GuessResult guessCharacter(String gameId, String playerId, String guessedCharacterId) {
         return gameLockManager.executeSerialized(gameId, () -> {
             GameSession game = getActiveGame(gameId, playerId);
             enforceTurn(game, playerId);
+            ensureNoPendingQuestion(gameId);
 
             String opponentId = Objects.requireNonNull(game.opponentOf(playerId)).getPlayerId();
             String expected = game.getSecretByPlayer().get(opponentId);
             boolean correct = expected.equals(guessedCharacterId);
             if (correct) {
+                pendingQuestionByGame.remove(gameId);
                 game.setWinnerPlayerId(playerId);
                 game.setStatus(GameStatus.FINISHED);
                 return new GuessResult(gameId, playerId, guessedCharacterId, true, null, playerId, true);
@@ -205,6 +265,40 @@ public class GameService {
         }
     }
 
+    private void ensureNoPendingQuestion(String gameId) {
+        if (pendingQuestionByGame.containsKey(gameId)) {
+            throw new GameActionException("Pending question must be answered first");
+        }
+    }
+
+    private QuestionResult resolvePendingQuestion(
+            String gameId,
+            GameSession game,
+            PendingQuestionState pending,
+            boolean answer,
+            boolean timeoutFallback
+    ) {
+        pendingQuestionByGame.remove(gameId);
+        game.setCurrentTurnPlayerId(pending.defenderPlayerId());
+        return new QuestionResult(
+                gameId,
+                pending.askerPlayerId(),
+                pending.questionKey().toWireValue(),
+                answer,
+                game.getCurrentTurnPlayerId(),
+                timeoutFallback
+        );
+    }
+
+    private boolean computeCorrectAnswer(GameSession game, String defenderPlayerId, QuestionKey questionKey) {
+        String defenderSecret = game.getSecretByPlayer().get(defenderPlayerId);
+        CharacterCard defenderCard = game.getBoard().characters().stream()
+                .filter(card -> card.characterId().equals(defenderSecret))
+                .findFirst()
+                .orElseThrow(() -> new GameActionException("Secret character not found"));
+        return defenderCard.hasAttribute(questionKey);
+    }
+
     private void abandonIfStillDisconnected(String gameId, String playerId) {
         gameLockManager.executeSerialized(gameId, () -> {
             GameSession game = gameById.get(gameId);
@@ -216,10 +310,20 @@ public class GameService {
                 return;
             }
             PlayerState opponent = game.opponentOf(playerId);
+                pendingQuestionByGame.remove(gameId);
             game.setWinnerPlayerId(opponent.getPlayerId());
             game.setStatus(GameStatus.ABANDONED);
         });
     }
+
+            private record PendingQuestionState(
+                String askerPlayerId,
+                String defenderPlayerId,
+                QuestionKey questionKey,
+                Instant askedAt,
+                long timeoutSeconds
+            ) {
+            }
 
     @PreDestroy
     public void shutdown() {
