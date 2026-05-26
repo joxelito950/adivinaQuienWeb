@@ -47,6 +47,8 @@ interface PendingQuestionState {
   deadlineMs: number
 }
 
+type QuestionAnswerMap = Partial<Record<QuestionKey, boolean>>
+
 function readStoredSnapshot(gameId: string): StoredGameSnapshot | null {
   if (typeof window === 'undefined') return null
   const raw = sessionStorage.getItem(`adivinaquien.game.${gameId}`)
@@ -80,6 +82,7 @@ export default function GamePage({ params }: PageProps) {
   const [nowMs, setNowMs] = useState<number>(Date.now())
   const [activeTab, setActiveTab] = useState<ActionTab>('question')
   const [selectedGuessCharacterId, setSelectedGuessCharacterId] = useState<string | null>(null)
+  const [resolvedQuestionAnswers, setResolvedQuestionAnswers] = useState<QuestionAnswerMap>({})
 
   const myPlayerId = playerIdRef.current
   const isGameFinished = gameStatus === 'finished'
@@ -153,6 +156,12 @@ export default function GamePage({ params }: PageProps) {
         const key = String(message.payload.questionKey).toUpperCase() as QuestionKey
         const byMe = message.payload.playerId === playerIdRef.current
         setPendingQuestion(null)
+        if (byMe) {
+          setResolvedQuestionAnswers((prev) => ({
+            ...prev,
+            [key]: Boolean(message.payload.answer),
+          }))
+        }
         if (!byMe) {
           setLatestOpponentQuestion({
             key,
@@ -430,6 +439,7 @@ export default function GamePage({ params }: PageProps) {
                 : null
             }
             selectedGuessCharacterName={selectedGuessCharacterName}
+            resolvedQuestionAnswers={resolvedQuestionAnswers}
             onAskQuestion={sendAskQuestion}
             onAnswerQuestion={sendAnswerQuestion}
           />
