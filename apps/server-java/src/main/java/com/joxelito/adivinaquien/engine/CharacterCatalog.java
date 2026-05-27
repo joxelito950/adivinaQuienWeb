@@ -141,12 +141,14 @@ public class CharacterCatalog {
                     QuestionKey.HAS_HAT,
                     QuestionKey.HAS_EARRINGS,
                     QuestionKey.IS_FEMALE,
+                    QuestionKey.IS_BALD,
                     QuestionKey.HAS_FAIR_SKIN),
             character(
                     16,
                     "Natalia",
                     QuestionKey.HAS_HAT,
                     QuestionKey.IS_FEMALE,
+                    QuestionKey.IS_BALD,
                     QuestionKey.HAS_FAIR_SKIN),
             character(
                     17,
@@ -191,6 +193,7 @@ public class CharacterCatalog {
                     QuestionKey.IS_FEMALE,
                     QuestionKey.HAS_HAT,
                     QuestionKey.HAS_EARRINGS,
+                    QuestionKey.IS_BALD,
                     QuestionKey.HAS_FAIR_SKIN),
             character(
                     22,
@@ -226,6 +229,7 @@ public class CharacterCatalog {
                     "Clara",
                     QuestionKey.IS_FEMALE,
                     QuestionKey.HAS_HAT,
+                    QuestionKey.IS_BALD,
                     QuestionKey.HAS_FAIR_SKIN),
             character(
                     26,
