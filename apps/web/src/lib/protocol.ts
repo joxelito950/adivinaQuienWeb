@@ -72,6 +72,7 @@ export interface WireMessage<T extends string, P> {
 
 export type JoinQueueCommand      = WireMessage<'join_queue',      { playerId: string; difficulty: string }>
 export type LeaveQueueCommand     = WireMessage<'leave_queue',     { playerId: string }>
+export type StartDummyMatchCommand = WireMessage<'start_dummy_match', { playerId: string }>
 export type AskQuestionCommand    = WireMessage<'ask_question',    { gameId: string; playerId: string; questionKey: string }>
 export type AnswerQuestionCommand = WireMessage<'answer_question', { gameId: string; playerId: string; answer: boolean }>
 export type GuessCharacterCommand = WireMessage<'guess_character', { gameId: string; playerId: string; characterId: string }>
@@ -81,6 +82,7 @@ export type PingCommand           = WireMessage<'ping',            Record<string
 export type ClientMessage =
   | JoinQueueCommand
   | LeaveQueueCommand
+  | StartDummyMatchCommand
   | AskQuestionCommand
   | AnswerQuestionCommand
   | GuessCharacterCommand

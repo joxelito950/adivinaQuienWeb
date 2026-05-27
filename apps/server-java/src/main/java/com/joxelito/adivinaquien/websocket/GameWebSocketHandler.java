@@ -137,6 +137,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         switch (type) {
             case "join_queue" -> handleJoinQueue(session, message.payload());
             case "leave_queue" -> handleLeaveQueue(session, message.payload());
+            case "start_dummy_match" -> handleStartDummyMatch(message.payload());
             case "ask_question" -> handleAskQuestion(message.payload());
             case "answer_question" -> handleAnswerQuestion(message.payload());
             case "guess_character" -> handleGuessCharacter(message.payload());
@@ -166,6 +167,14 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         String playerId = getRequiredText(payload, PLAYER_ID);
         matchmakingService.leaveQueue(playerId);
         send(session, "queue_left", null, Map.of(PLAYER_ID, playerId));
+    }
+
+    private void handleStartDummyMatch(JsonNode payload) {
+        String playerId = getRequiredText(payload, PLAYER_ID);
+        boolean started = matchmakingService.startMatchWithDummyNow(playerId);
+        if (!started) {
+            throw new GameActionException("Player is not waiting in queue");
+        }
     }
 
     private void handleAskQuestion(JsonNode payload) {

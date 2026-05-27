@@ -63,5 +63,24 @@ class MatchmakingServiceTest {
         assertNotNull(started);
         assertEquals(PlayerType.DUMMY, started.second().type());
     }
+
+    @Test
+    void startsDummyImmediatelyWhenRequested() {
+        AppProperties properties = new AppProperties();
+        properties.setMatchTimeoutSeconds(60);
+        service = new MatchmakingService(properties);
+
+        AtomicReference<MatchStarted> ref = new AtomicReference<>();
+        service.registerListener(ref::set);
+
+        service.joinQueue("p1", "s1", Difficulty.SMALL);
+        boolean startedNow = service.startMatchWithDummyNow("p1");
+
+        assertEquals(true, startedNow);
+        MatchStarted started = ref.get();
+        assertNotNull(started);
+        assertEquals(PlayerType.HUMAN, started.first().type());
+        assertEquals(PlayerType.DUMMY, started.second().type());
+    }
 }
 

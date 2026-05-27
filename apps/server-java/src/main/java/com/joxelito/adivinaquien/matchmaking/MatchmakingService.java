@@ -80,6 +80,19 @@ public class MatchmakingService {
         entry.cancelTimeout();
     }
 
+    public synchronized boolean startMatchWithDummyNow(String playerId) {
+        Objects.requireNonNull(playerId);
+
+        QueueEntry entry = queueEntryByPlayer.get(playerId);
+        if (entry == null) {
+            return false;
+        }
+
+        entry.cancelTimeout();
+        triggerDummy(entry);
+        return true;
+    }
+
     private synchronized void triggerDummy(QueueEntry entry) {
         if (!queueEntryByPlayer.containsKey(entry.playerId())) {
             return;

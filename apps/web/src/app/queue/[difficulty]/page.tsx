@@ -1,6 +1,6 @@
 'use client'
 
-import { use, useEffect, useState } from 'react'
+import { use, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Spinner } from '@/components/ui/Spinner'
 import { Button } from '@/components/ui/Button'
@@ -15,6 +15,7 @@ import {
 } from '@/lib/protocol'
 
 const MATCH_TIMEOUT = 60
+const AI_BUTTON_ENABLE_AFTER_SECONDS = 3
 
 const DIFFICULTY_META: Record<string, { label: string; grid: string }> = {
   small:  { label: 'Pequeño',  grid: '3 × 4'  },
@@ -36,6 +37,9 @@ export default function QueuePage({ params }: PageProps) {
   const [phase, setPhase]             = useState<'searching' | 'dummy'>('searching')
   const [status, setStatus]           = useState<'connecting' | 'connected' | 'error'>('connecting')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [requestingAi, setRequestingAi] = useState(false)
+  const wsClientRef = useRef<WsClient | null>(null)
+  const playerIdRef = useRef<string>('')
 
   useEffect(() => {
     if (secondsLeft <= 0) {
@@ -48,6 +52,7 @@ export default function QueuePage({ params }: PageProps) {
 
   useEffect(() => {
     const playerId = getPlayerId()
+    playerIdRef.current = playerId
     let client: WsClient | null = null
 
     function handleEvent(message: ServerMessage) {
@@ -55,11 +60,13 @@ export default function QueuePage({ params }: PageProps) {
         const event = message as QueueWaitingEvent
         setSecondsLeft(event.payload.timeoutSeconds ?? MATCH_TIMEOUT)
         setPhase('searching')
+        setRequestingAi(false)
         return
       }
 
       if (message.type === 'game_started') {
         const event = message as GameStartedEvent
+        setRequestingAi(false)
         sessionStorage.setItem(
           `adivinaquien.game.${event.payload.gameId}`,
           JSON.stringify(event.payload),
@@ -82,6 +89,7 @@ export default function QueuePage({ params }: PageProps) {
       onOpen: () => {
         setStatus('connected')
         setErrorMessage(null)
+        wsClientRef.current = client
         client?.send({
           type: 'join_queue',
           payload: {
@@ -107,6 +115,7 @@ export default function QueuePage({ params }: PageProps) {
     return () => {
       client?.send({ type: 'leave_queue', payload: { playerId } })
       client?.close()
+      wsClientRef.current = null
     }
   }, [router, wireDifficulty])
 
@@ -114,8 +123,31 @@ export default function QueuePage({ params }: PageProps) {
     router.push('/')
   }
 
+  function handleStartAiMatch() {
+    if (phase !== 'searching' || status !== 'connected' || requestingAi) {
+      return
+    }
+    if (MATCH_TIMEOUT - secondsLeft < AI_BUTTON_ENABLE_AFTER_SECONDS) {
+      return
+    }
+
+    const playerId = playerIdRef.current
+    if (!playerId) {
+      return
+    }
+
+    setRequestingAi(true)
+    setErrorMessage(null)
+    wsClientRef.current?.send({
+      type: 'start_dummy_match',
+      payload: { playerId },
+    })
+  }
+
   const progress   = secondsLeft / MATCH_TIMEOUT
   const circumference = 2 * Math.PI * 42
+  const elapsedSeconds = MATCH_TIMEOUT - secondsLeft
+  const aiReady = phase === 'searching' && elapsedSeconds >= AI_BUTTON_ENABLE_AFTER_SECONDS && status === 'connected'
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-8 py-12 text-center">
@@ -168,7 +200,7 @@ export default function QueuePage({ params }: PageProps) {
             {errorMessage}
           </p>
         )}
-        {phase === 'dummy' && (
+        {(phase === 'dummy' || requestingAi) && (
           <p className="mt-1 rounded-xl border border-amber-700 bg-amber-900/20 px-4 py-2 text-sm text-amber-300">
             Iniciando partida contra la IA…
           </p>
@@ -176,6 +208,17 @@ export default function QueuePage({ params }: PageProps) {
       </div>
 
       {phase === 'searching' && <Spinner size="lg" />}
+
+      {phase === 'searching' && (
+        <Button
+          onClick={handleStartAiMatch}
+          disabled={!aiReady || requestingAi}
+          variant={aiReady ? 'primary' : 'secondary'}
+          className={aiReady ? 'animate-pulse' : ''}
+        >
+          {requestingAi ? 'Solicitando partida con IA…' : 'Jugar contra IA'}
+        </Button>
+      )}
 
       <Button variant="ghost" onClick={handleCancel}>
         Cancelar y volver al menú
