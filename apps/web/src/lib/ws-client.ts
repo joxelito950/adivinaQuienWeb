@@ -16,7 +16,7 @@ export interface WsHandlers {
 export function createWsClient(handlers: WsHandlers = {}, url?: string): WsClient | null {
   if (typeof window === 'undefined' || typeof WebSocket === 'undefined') return null
 
-  const wsUrl = url ?? process.env.NEXT_PUBLIC_WS_URL ?? 'ws://localhost:8080/ws'
+  const wsUrl = url ?? process.env.NEXT_PUBLIC_WS_URL ?? 'wss://adivinaquienweb-production.up.railway.app/ws'
   const socket = new WebSocket(wsUrl)
 
   if (handlers.onOpen) {
