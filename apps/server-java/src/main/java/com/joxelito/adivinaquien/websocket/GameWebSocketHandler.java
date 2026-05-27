@@ -232,6 +232,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
 
         broadcast(game, TURN_CHANGED, Map.of(GAME_ID, gameId, CURRENT_TURN_PLAYER_ID, result.nextTurnPlayerId()));
         updateCandidatesFromAnswer(game, result.playerId(), result.questionKey(), result.answer());
+        sendCandidatesUpdated(game, result.playerId());
         schedulePlayerInactivityTimeout(game);
         maybeTriggerDummyTurn(game);
     }
@@ -262,6 +263,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         }
 
         removeCandidateGuess(game, playerId, characterId);
+        sendCandidatesUpdated(game, playerId);
 
         broadcast(game, TURN_CHANGED, Map.of(GAME_ID, gameId, CURRENT_TURN_PLAYER_ID, result.nextTurnPlayerId()));
         schedulePlayerInactivityTimeout(game);
@@ -294,6 +296,8 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         } else {
             schedulePlayerInactivityTimeout(game);
         }
+
+        sendCandidatesUpdated(game, playerId);
     }
 
     private void onMatchStarted(MatchStarted matchStarted) {
@@ -303,6 +307,8 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
 
         sendGameStarted(game, matchStarted.first());
         sendGameStarted(game, matchStarted.second());
+        sendCandidatesUpdated(game, game.getPlayerOne().getPlayerId());
+        sendCandidatesUpdated(game, game.getPlayerTwo().getPlayerId());
         schedulePlayerInactivityTimeout(game);
         maybeTriggerDummyTurn(game);
     }
@@ -442,6 +448,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                         "timeoutFallback", result.timeoutFallback()
                 ));
                 updateCandidatesFromAnswer(game, result.playerId(), result.questionKey(), result.answer());
+                sendCandidatesUpdated(game, result.playerId());
                 broadcast(game, TURN_CHANGED, Map.of(
                         GAME_ID, prompt.gameId(),
                         CURRENT_TURN_PLAYER_ID, result.nextTurnPlayerId()
@@ -482,6 +489,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
                         "timeoutFallback", result.timeoutFallback()
                 ));
                 updateCandidatesFromAnswer(game, result.playerId(), result.questionKey(), result.answer());
+                sendCandidatesUpdated(game, result.playerId());
                 broadcast(game, TURN_CHANGED, Map.of(
                         GAME_ID, prompt.gameId(),
                         CURRENT_TURN_PLAYER_ID, result.nextTurnPlayerId()
@@ -819,6 +827,32 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
             return List.copyOf(allCandidateIdsExceptOwnSecret(game, playerId));
         }
         return List.copyOf(candidates);
+    }
+
+    private void sendCandidatesUpdated(GameSession game, String playerId) {
+        if (game == null) {
+            return;
+        }
+
+        PlayerState player = game.playerById(playerId);
+        if (player == null || player.getType() == PlayerType.DUMMY) {
+            return;
+        }
+
+        String ownSecret = game.getSecretByPlayer().get(playerId);
+        Set<String> activeCandidates = new HashSet<>(candidatePoolForPlayer(game, playerId));
+        List<String> eliminated = game.getBoard().characters().stream()
+                .map(CharacterCard::characterId)
+                .filter(id -> !id.equals(ownSecret))
+                .filter(id -> !activeCandidates.contains(id))
+                .toList();
+
+        sendToPlayer(player, "candidates_updated", Map.of(
+                GAME_ID, game.getGameId(),
+                PLAYER_ID, playerId,
+                "eliminatedCharacterIds", eliminated,
+                "candidateCount", activeCandidates.size()
+        ));
     }
 
     private void broadcast(GameSession game, String type, Object payload) {

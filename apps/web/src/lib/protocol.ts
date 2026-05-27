@@ -150,6 +150,13 @@ export type AutoActionTriggeredEvent = WireMessage<'auto_action_triggered', {
   correct?: boolean
 }>
 
+export type CandidatesUpdatedEvent = WireMessage<'candidates_updated', {
+  gameId: string
+  playerId: string
+  eliminatedCharacterIds: string[]
+  candidateCount: number
+}>
+
 export type InvalidActionEvent = WireMessage<'invalid_action', {
   reason: string
 }>
@@ -192,6 +199,7 @@ export type ServerMessage =
   | QuestionAnsweredEvent
   | GuessResultEvent
   | AutoActionTriggeredEvent
+  | CandidatesUpdatedEvent
   | InvalidActionEvent
   | PlayerDisconnectedEvent
   | GameFinishedEvent

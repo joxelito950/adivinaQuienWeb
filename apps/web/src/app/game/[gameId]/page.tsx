@@ -83,6 +83,7 @@ export default function GamePage({ params }: PageProps) {
   const [activeTab, setActiveTab] = useState<ActionTab>('question')
   const [selectedGuessCharacterId, setSelectedGuessCharacterId] = useState<string | null>(null)
   const [resolvedQuestionAnswers, setResolvedQuestionAnswers] = useState<QuestionAnswerMap>({})
+  const [eliminatedCharacterIds, setEliminatedCharacterIds] = useState<string[]>([])
 
   const myPlayerId = playerIdRef.current
   const isGameFinished = gameStatus === 'finished'
@@ -219,6 +220,15 @@ export default function GamePage({ params }: PageProps) {
             message: `${byMe ? 'Tu turno' : 'Turno del oponente'}: ${actionLabel} por 30s de inactividad.`,
           },
         ])
+        return
+      }
+
+      if (message.type === 'candidates_updated' && message.payload.gameId === gameId) {
+        if (message.payload.playerId === playerIdRef.current) {
+          setEliminatedCharacterIds(Array.isArray(message.payload.eliminatedCharacterIds)
+            ? message.payload.eliminatedCharacterIds
+            : [])
+        }
         return
       }
 
@@ -412,7 +422,7 @@ export default function GamePage({ params }: PageProps) {
             board={board}
             difficulty={fromWireDifficulty(difficulty)}
             secretCharacterId={secretCharacterId}
-            eliminatedIds={[]}
+            eliminatedIds={eliminatedCharacterIds}
             selectable={isMyTurn && gameStatus === 'in_progress' && !hasPendingQuestion && activeTab === 'guess'}
             selectedId={selectedGuessCharacterId ?? undefined}
             onSelect={setSelectedGuessCharacterId}
