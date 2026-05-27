@@ -135,4 +135,22 @@ describe('protocol helpers', () => {
     expect(payload.candidateCount).toBe(3)
     expect(payload.characterId).toBe('char-9')
   })
+
+  it('parses candidates_updated payloads', () => {
+    const raw = JSON.stringify({
+      type: 'candidates_updated',
+      payload: {
+        gameId: 'g-1',
+        playerId: 'p1',
+        eliminatedCharacterIds: ['char-2', 'char-7'],
+        candidateCount: 9,
+      },
+    })
+
+    const parsed = parseServerMessage(raw)
+    const payload = parsed?.payload as { eliminatedCharacterIds?: string[]; candidateCount?: number }
+    expect(parsed?.type).toBe('candidates_updated')
+    expect(payload.eliminatedCharacterIds).toEqual(['char-2', 'char-7'])
+    expect(payload.candidateCount).toBe(9)
+  })
 })

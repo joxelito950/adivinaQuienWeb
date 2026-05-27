@@ -84,6 +84,7 @@ export default function GamePage({ params }: PageProps) {
   const [selectedGuessCharacterId, setSelectedGuessCharacterId] = useState<string | null>(null)
   const [resolvedQuestionAnswers, setResolvedQuestionAnswers] = useState<QuestionAnswerMap>({})
   const [eliminatedCharacterIds, setEliminatedCharacterIds] = useState<string[]>([])
+  const [candidateCount, setCandidateCount] = useState<number | null>(null)
 
   const myPlayerId = playerIdRef.current
   const isGameFinished = gameStatus === 'finished'
@@ -228,6 +229,9 @@ export default function GamePage({ params }: PageProps) {
           setEliminatedCharacterIds(Array.isArray(message.payload.eliminatedCharacterIds)
             ? message.payload.eliminatedCharacterIds
             : [])
+          setCandidateCount(typeof message.payload.candidateCount === 'number'
+            ? message.payload.candidateCount
+            : null)
         }
         return
       }
@@ -449,6 +453,7 @@ export default function GamePage({ params }: PageProps) {
                 : null
             }
             selectedGuessCharacterName={selectedGuessCharacterName}
+            candidateCount={candidateCount}
             resolvedQuestionAnswers={resolvedQuestionAnswers}
             onAskQuestion={sendAskQuestion}
             onAnswerQuestion={sendAnswerQuestion}

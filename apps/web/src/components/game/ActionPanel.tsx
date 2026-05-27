@@ -20,6 +20,7 @@ interface ActionPanelProps {
   onTabChange:             (tab: ActionTab) => void
   pendingQuestion?:        PendingQuestion | null
   selectedGuessCharacterName?: string | null
+  candidateCount?:         number | null
   resolvedQuestionAnswers?: Partial<Record<QuestionKey, boolean>>
   onAskQuestion?:          (key: QuestionKey) => void
   onAnswerQuestion?:       (answer: boolean) => void
@@ -32,6 +33,7 @@ export function ActionPanel({
   onTabChange,
   pendingQuestion = null,
   selectedGuessCharacterName = null,
+  candidateCount = null,
   resolvedQuestionAnswers = {},
   onAskQuestion,
   onAnswerQuestion,
@@ -70,6 +72,11 @@ export function ActionPanel({
       <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
         Tu acción
       </h2>
+      {typeof candidateCount === 'number' && (
+        <p className="mb-3 rounded-lg border border-slate-700 bg-slate-900/50 px-2.5 py-1.5 text-xs text-slate-300">
+          Candidatos restantes: <span className="font-semibold text-slate-100">{candidateCount}</span>
+        </p>
+      )}
 
       {pendingQuestion ? (
         <div className="space-y-3">
