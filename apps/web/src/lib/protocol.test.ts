@@ -154,4 +154,22 @@ describe('protocol helpers', () => {
     expect(payload.eliminatedCharacterIds).toEqual(['char-2', 'char-7'])
     expect(payload.candidateCount).toBe(9)
   })
+
+  it('parses reconnected payload with activeQuestionKeys', () => {
+    const raw = JSON.stringify({
+      type: 'reconnected',
+      payload: {
+        gameId: 'g-1',
+        currentTurnPlayerId: 'p2',
+        status: 'in_progress',
+        activeQuestionKeys: ['USES_GLASSES', 'HAS_BEARD'],
+      },
+    })
+
+    const parsed = parseServerMessage(raw)
+    const payload = parsed?.payload as { activeQuestionKeys?: string[]; status?: string }
+    expect(parsed?.type).toBe('reconnected')
+    expect(payload.status).toBe('in_progress')
+    expect(payload.activeQuestionKeys).toEqual(['USES_GLASSES', 'HAS_BEARD'])
+  })
 })

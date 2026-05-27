@@ -178,6 +178,7 @@ export type ReconnectedEvent = WireMessage<'reconnected', {
   gameId: string
   currentTurnPlayerId: string
   status: 'waiting' | 'in_progress' | 'finished' | 'abandoned'
+  activeQuestionKeys?: string[]
 }>
 
 export type ErrorEvent = WireMessage<'error', {

@@ -290,7 +290,8 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         send(session, "reconnected", null, Map.of(
                 GAME_ID, gameId,
                 CURRENT_TURN_PLAYER_ID, game.getCurrentTurnPlayerId(),
-                "status", game.getStatus().name().toLowerCase()
+            "status", game.getStatus().name().toLowerCase(),
+            "activeQuestionKeys", questionPolicy.activeQuestions().stream().map(QuestionKey::name).toList()
         ));
 
         PendingQuestionPrompt pending = gameService.getPendingQuestion(gameId);

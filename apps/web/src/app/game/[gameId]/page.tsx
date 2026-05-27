@@ -100,7 +100,7 @@ export default function GamePage({ params }: PageProps) {
   const [resolvedQuestionAnswers, setResolvedQuestionAnswers] = useState<QuestionAnswerMap>({})
   const [eliminatedCharacterIds, setEliminatedCharacterIds] = useState<string[]>([])
   const [candidateCount, setCandidateCount] = useState<number | null>(null)
-  const [availableQuestionKeys] = useState<QuestionKey[]>(() => parseQuestionKeysOrFallback(snapshot?.activeQuestionKeys))
+  const [availableQuestionKeys, setAvailableQuestionKeys] = useState<QuestionKey[]>(() => parseQuestionKeysOrFallback(snapshot?.activeQuestionKeys))
   const [dismissEndgameOverlay, setDismissEndgameOverlay] = useState(false)
 
   const myPlayerId = playerIdRef.current
@@ -345,6 +345,7 @@ export default function GamePage({ params }: PageProps) {
       if (message.type === 'reconnected' && message.payload.gameId === gameId) {
         setCurrentTurnPlayerId(message.payload.currentTurnPlayerId)
         setGameStatus(message.payload.status)
+        setAvailableQuestionKeys(parseQuestionKeysOrFallback(message.payload.activeQuestionKeys))
         return
       }
 
