@@ -2,6 +2,7 @@ package com.joxelito.adivinaquien.unit;
 
 import com.joxelito.adivinaquien.domain.Difficulty;
 import com.joxelito.adivinaquien.domain.QuestionKey;
+import com.joxelito.adivinaquien.engine.CharacterCatalog;
 import com.joxelito.adivinaquien.dummy.DummyPlayerService;
 import com.joxelito.adivinaquien.engine.QuestionPolicy;
 import org.junit.jupiter.api.Test;
@@ -14,7 +15,7 @@ class DummyPlayerServiceTest {
 
     @Test
     void choosesOnlyActiveQuestions() {
-        QuestionPolicy questionPolicy = new QuestionPolicy();
+        QuestionPolicy questionPolicy = new QuestionPolicy(new CharacterCatalog());
         DummyPlayerService service = new DummyPlayerService(questionPolicy);
 
         Set<QuestionKey> active = Set.copyOf(questionPolicy.activeQuestions());

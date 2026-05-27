@@ -22,7 +22,6 @@ export const ACTIVE_QUESTION_KEYS: QuestionKey[] = [
   QuestionKey.USES_GLASSES,
   QuestionKey.HAS_BEARD,
   QuestionKey.HAS_HAT,
-  QuestionKey.HAS_BLONDE_HAIR,
   QuestionKey.HAS_LONG_HAIR,
   QuestionKey.HAS_SHORT_HAIR,
   QuestionKey.HAS_STRAIGHT_HAIR,
@@ -31,6 +30,4 @@ export const ACTIVE_QUESTION_KEYS: QuestionKey[] = [
   QuestionKey.IS_MALE,
   QuestionKey.IS_FEMALE,
   QuestionKey.IS_BALD,
-  QuestionKey.HAS_FAIR_SKIN,
-  QuestionKey.HAS_DARK_SKIN,
 ]
