@@ -67,6 +67,7 @@ export default function GamePage({ params }: PageProps) {
   const snapshot = useMemo(() => readStoredSnapshot(gameId), [gameId])
   const playerIdRef = useRef<string>('')
   const wsClientRef = useRef<WsClient | null>(null)
+  const endgameFxKeyRef = useRef<string | null>(null)
 
   const [difficulty, setDifficulty] = useState<DifficultyWire>(snapshot?.difficulty ?? 'small')
   const [board, setBoard] = useState<Board | null>(snapshot?.board ?? null)
@@ -85,9 +86,11 @@ export default function GamePage({ params }: PageProps) {
   const [resolvedQuestionAnswers, setResolvedQuestionAnswers] = useState<QuestionAnswerMap>({})
   const [eliminatedCharacterIds, setEliminatedCharacterIds] = useState<string[]>([])
   const [candidateCount, setCandidateCount] = useState<number | null>(null)
+  const [dismissEndgameOverlay, setDismissEndgameOverlay] = useState(false)
 
   const myPlayerId = playerIdRef.current
   const isGameFinished = gameStatus === 'finished'
+  const didIWin = !!winnerPlayerId && winnerPlayerId === myPlayerId
   const isMyTurn = !isGameFinished && !!myPlayerId && currentTurnPlayerId === myPlayerId
 
   useEffect(() => {
@@ -96,6 +99,63 @@ export default function GamePage({ params }: PageProps) {
     }, 1000)
     return () => window.clearInterval(timer)
   }, [])
+
+  useEffect(() => {
+    if (!isGameFinished) {
+      setDismissEndgameOverlay(false)
+    }
+  }, [isGameFinished])
+
+  useEffect(() => {
+    if (!isGameFinished || !didIWin) {
+      return
+    }
+
+    const effectKey = `${gameId}:${winnerPlayerId}`
+    if (endgameFxKeyRef.current === effectKey) {
+      return
+    }
+    endgameFxKeyRef.current = effectKey
+
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return
+    }
+
+    let cancelled = false
+    ;(async () => {
+      const mod = await import('canvas-confetti')
+      if (cancelled) {
+        return
+      }
+
+      const confetti = mod.default
+      const runBurst = (originX: number, angle: number) => {
+        confetti({
+          particleCount: 65,
+          spread: 65,
+          startVelocity: 55,
+          angle,
+          origin: { x: originX, y: 0.7 },
+          ticks: 220,
+        })
+      }
+
+      runBurst(0, 55)
+      runBurst(1, 125)
+      window.setTimeout(() => {
+        runBurst(0, 45)
+        runBurst(1, 135)
+      }, 320)
+      window.setTimeout(() => {
+        runBurst(0, 60)
+        runBurst(1, 120)
+      }, 650)
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [didIWin, gameId, isGameFinished, winnerPlayerId])
 
   useEffect(() => {
     playerIdRef.current = getPlayerId()
@@ -381,8 +441,8 @@ export default function GamePage({ params }: PageProps) {
             {gameStatus === 'finished' ? 'Finalizada' : 'En progreso'}
           </Badge>
           {winnerPlayerId && (
-            <Badge variant={winnerPlayerId === myPlayerId ? 'success' : 'danger'}>
-              {winnerPlayerId === myPlayerId ? 'Ganaste' : 'Perdiste'}
+            <Badge variant={didIWin ? 'success' : 'danger'}>
+              {didIWin ? 'Ganaste' : 'Perdiste'}
             </Badge>
           )}
         </div>
@@ -397,7 +457,7 @@ export default function GamePage({ params }: PageProps) {
       <TurnIndicator
         isMyTurn={isMyTurn}
         isFinished={isGameFinished}
-        didIWin={winnerPlayerId === myPlayerId}
+        didIWin={didIWin}
         opponentName="Oponente"
         note={turnIndicatorNote}
         className="mb-6"
@@ -415,6 +475,42 @@ export default function GamePage({ params }: PageProps) {
             </Button>
           </div>
         </section>
+      )}
+
+      {isGameFinished && !dismissEndgameOverlay && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-[2px]">
+          <section
+            role="dialog"
+            aria-modal="true"
+            className={[
+              'w-full max-w-lg rounded-3xl border p-6 shadow-2xl sm:p-8',
+              didIWin
+                ? 'border-emerald-400/60 bg-emerald-950/85 text-emerald-50 shadow-emerald-500/25'
+                : 'border-rose-400/50 bg-rose-950/85 text-rose-50 shadow-rose-500/25',
+            ].join(' ')}
+          >
+            <p className="text-center text-xs font-semibold uppercase tracking-[0.25em] text-white/70">
+              Resultado de partida
+            </p>
+            <h2 className="mt-3 text-center text-4xl font-black sm:text-5xl">
+              {didIWin ? '¡GANASTE!' : 'PERDISTE'}
+            </h2>
+            <p className="mt-3 text-center text-sm sm:text-base">
+              {didIWin
+                ? 'Gran cierre. Tu estrategia fue mejor esta ronda.'
+                : 'Casi lo logras. Ajusta una pregunta clave y vuelve a intentar.'}
+            </p>
+
+            <div className="mt-6 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <Button onClick={() => router.push('/')}>
+                Jugar otra partida
+              </Button>
+              <Button variant="secondary" onClick={() => setDismissEndgameOverlay(true)}>
+                Ver tablero final
+              </Button>
+            </div>
+          </section>
+        </div>
       )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px] lg:items-start">
