@@ -21,7 +21,7 @@ class CharacterCatalogTest {
         assertEquals(37, cards.size());
         assertEquals("char-1", cards.getFirst().characterId());
         assertEquals("char-37", cards.get(36).characterId());
-        assertEquals("Camila", cards.getFirst().displayName());
+        assertEquals("Juan", cards.getFirst().displayName());
         assertTrue(cards.stream().noneMatch(card -> card.displayName().startsWith("Character ")));
         assertTrue(cards.stream().noneMatch(card -> card.displayName().toLowerCase().startsWith("chica ")));
         assertTrue(cards.stream().noneMatch(card -> card.displayName().toLowerCase().startsWith("chico ")));
@@ -48,11 +48,12 @@ class CharacterCatalogTest {
         assertTrue(ruben.attributes().contains(QuestionKey.HAS_CURLY_HAIR));
 
         var camila = cards.stream()
-                .filter(card -> "Camila".equals(card.displayName()))
+            .filter(card -> "char-4".equals(card.characterId()))
                 .findFirst()
                 .orElseThrow();
-        assertTrue(camila.attributes().contains(QuestionKey.USES_GLASSES));
         assertTrue(camila.attributes().contains(QuestionKey.IS_FEMALE));
+        assertTrue(!camila.attributes().contains(QuestionKey.IS_MALE));
+        assertTrue(!camila.attributes().contains(QuestionKey.USES_GLASSES));
         assertTrue(camila.attributes().contains(QuestionKey.HAS_LONG_HAIR));
         assertTrue(camila.attributes().contains(QuestionKey.HAS_STRAIGHT_HAIR));
 
@@ -61,12 +62,13 @@ class CharacterCatalogTest {
                 .findFirst()
                 .orElseThrow();
         assertTrue(luna.attributes().contains(QuestionKey.HAS_HAT));
-        assertTrue(luna.attributes().contains(QuestionKey.HAS_CURLY_HAIR));
+        assertTrue(luna.attributes().contains(QuestionKey.HAS_STRAIGHT_HAIR));
 
         var juan = cards.stream()
                 .filter(card -> "Juan".equals(card.displayName()))
                 .findFirst()
                 .orElseThrow();
+        assertTrue(juan.attributes().contains(QuestionKey.HAS_HAT));
         assertTrue(juan.attributes().contains(QuestionKey.USES_GLASSES));
         assertTrue(juan.attributes().contains(QuestionKey.HAS_BEARD));
         assertTrue(juan.attributes().contains(QuestionKey.HAS_SHORT_HAIR));
@@ -77,7 +79,15 @@ class CharacterCatalogTest {
                 .orElseThrow();
         assertTrue(miguel.attributes().contains(QuestionKey.IS_BALD));
         assertTrue(miguel.attributes().contains(QuestionKey.IS_MALE));
+        assertTrue(miguel.attributes().contains(QuestionKey.USES_GLASSES));
         assertTrue(!miguel.attributes().contains(QuestionKey.HAS_SHORT_HAIR));
+
+        var alicia = cards.stream()
+            .filter(card -> "Alicia".equals(card.displayName()))
+            .findFirst()
+            .orElseThrow();
+        assertTrue(alicia.attributes().contains(QuestionKey.IS_FEMALE));
+        assertTrue(alicia.attributes().contains(QuestionKey.IS_BALD));
     }
 
     @Test
