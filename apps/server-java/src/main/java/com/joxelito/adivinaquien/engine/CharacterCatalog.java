@@ -5,7 +5,6 @@ import com.joxelito.adivinaquien.domain.QuestionKey;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -14,46 +13,45 @@ import java.util.Set;
 public class CharacterCatalog {
 
     private static final List<CharacterDefinition> DEFINITIONS = List.of(
-            // Chicas
-            female("chica-01.png", "Camila", QuestionKey.USES_GLASSES),
-            female("chica-14.png", "Ines", QuestionKey.HAS_EARRINGS, QuestionKey.HAS_CURLY_HAIR),
-            female("chica-20.png", "Valeria", QuestionKey.HAS_EARRINGS, QuestionKey.HAS_CURLY_HAIR),
-            female("chica-24.png", "Sofia", QuestionKey.HAS_EARRINGS),
-            female("chica-25.png", "Paula", QuestionKey.IS_BALD, QuestionKey.HAS_EARRINGS),
-            female("chica-27.png", "Luna", QuestionKey.HAS_HAT, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_CURLY_HAIR),
-            female("chica-30.png", "Marina", QuestionKey.HAS_HAT, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_CURLY_HAIR),
-            female("chica-31.png", "Elena", QuestionKey.HAS_HAT, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_CURLY_HAIR),
-            female("chica-32.png", "Daniela", QuestionKey.HAS_HAT),
-            female("chica-33.png", "Natalia", QuestionKey.HAS_HAT),
-            female("chica-34.png", "Alicia", QuestionKey.HAS_HAT),
-            female("chica-35.png", "Laura", QuestionKey.HAS_HAT),
-            female("chica-37.png", "Clara", QuestionKey.HAS_CURLY_HAIR),
-            female("chica-38.png", "Marta"),
+        // Catalogo curado manualmente: se explicitan atributos jugables por personaje.
+        character("Camila", QuestionKey.IS_FEMALE, QuestionKey.USES_GLASSES, QuestionKey.HAS_LONG_HAIR, QuestionKey.HAS_STRAIGHT_HAIR),
+        character("Ines", QuestionKey.IS_FEMALE, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_LONG_HAIR, QuestionKey.HAS_CURLY_HAIR),
+        character("Valeria", QuestionKey.IS_FEMALE, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_LONG_HAIR, QuestionKey.HAS_CURLY_HAIR),
+        character("Sofia", QuestionKey.IS_FEMALE, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_LONG_HAIR, QuestionKey.HAS_STRAIGHT_HAIR),
+        character("Paula", QuestionKey.IS_FEMALE, QuestionKey.IS_BALD, QuestionKey.HAS_EARRINGS),
+        character("Luna", QuestionKey.IS_FEMALE, QuestionKey.HAS_HAT, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_LONG_HAIR, QuestionKey.HAS_CURLY_HAIR),
+        character("Marina", QuestionKey.IS_FEMALE, QuestionKey.HAS_HAT, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_LONG_HAIR, QuestionKey.HAS_CURLY_HAIR),
+        character("Elena", QuestionKey.IS_FEMALE, QuestionKey.HAS_HAT, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_LONG_HAIR, QuestionKey.HAS_CURLY_HAIR),
+        character("Daniela", QuestionKey.IS_FEMALE, QuestionKey.HAS_HAT, QuestionKey.HAS_LONG_HAIR, QuestionKey.HAS_STRAIGHT_HAIR),
+        character("Natalia", QuestionKey.IS_FEMALE, QuestionKey.HAS_HAT, QuestionKey.HAS_LONG_HAIR, QuestionKey.HAS_STRAIGHT_HAIR),
+        character("Alicia", QuestionKey.IS_FEMALE, QuestionKey.HAS_HAT, QuestionKey.HAS_LONG_HAIR, QuestionKey.HAS_STRAIGHT_HAIR),
+        character("Laura", QuestionKey.IS_FEMALE, QuestionKey.HAS_HAT, QuestionKey.HAS_LONG_HAIR, QuestionKey.HAS_STRAIGHT_HAIR),
+        character("Clara", QuestionKey.IS_FEMALE, QuestionKey.HAS_LONG_HAIR, QuestionKey.HAS_CURLY_HAIR),
+        character("Marta", QuestionKey.IS_FEMALE, QuestionKey.HAS_LONG_HAIR, QuestionKey.HAS_STRAIGHT_HAIR),
 
-            // Chicos
-            male("chico-02.png", "Juan", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS),
-            male("chico-03.png", "Diego", QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_CURLY_HAIR),
-            male("Chico-04.png", "Mateo", QuestionKey.USES_GLASSES),
-            male("chico-05.png", "Nicolas", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_CURLY_HAIR),
-            male("chico-06.png", "Tomas", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_CURLY_HAIR),
-            male("chico-07.png", "Andres", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_CURLY_HAIR),
-            male("chico-08.png", "Bruno", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_CURLY_HAIR),
-            male("chico-09.png", "Lucas", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_CURLY_HAIR),
-            male("chico-10.png", "Martin", QuestionKey.HAS_HAT, QuestionKey.USES_GLASSES, QuestionKey.HAS_EARRINGS),
-            male("chico-11.png", "Adrian", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_CURLY_HAIR),
-            male("chico-12.png", "Sergio", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS),
-            male("chico-13.png", "Pablo", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS),
-            male("chico-15.png", "Hugo", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS),
-            male("chico-16.png", "Ruben", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_CURLY_HAIR),
-            male("chico-17.png", "Cesar", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS),
-            male("chico-18.png", "Javier", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS),
-            male("chico-21.png", "Guillermo", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_CURLY_HAIR),
-            male("chico-22.png", "Alvaro", QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS),
-            male("chico-23.png", "Ivan", QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_CURLY_HAIR),
-            male("chico-25.png", "Raul", QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_CURLY_HAIR),
-            male("chico-28.png", "Leo", QuestionKey.IS_BALD, QuestionKey.USES_GLASSES),
-            male("chico-29.png", "Gabriel"),
-            male("chico-36.png", "Miguel", QuestionKey.IS_BALD)
+        character("Juan", QuestionKey.IS_MALE, QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_SHORT_HAIR, QuestionKey.HAS_STRAIGHT_HAIR),
+        character("Diego", QuestionKey.IS_MALE, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_SHORT_HAIR, QuestionKey.HAS_CURLY_HAIR),
+        character("Mateo", QuestionKey.IS_MALE, QuestionKey.USES_GLASSES, QuestionKey.HAS_SHORT_HAIR, QuestionKey.HAS_STRAIGHT_HAIR),
+        character("Nicolas", QuestionKey.IS_MALE, QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_SHORT_HAIR, QuestionKey.HAS_CURLY_HAIR),
+        character("Tomas", QuestionKey.IS_MALE, QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_SHORT_HAIR, QuestionKey.HAS_CURLY_HAIR),
+        character("Andres", QuestionKey.IS_MALE, QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_SHORT_HAIR, QuestionKey.HAS_CURLY_HAIR),
+        character("Bruno", QuestionKey.IS_MALE, QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_SHORT_HAIR, QuestionKey.HAS_CURLY_HAIR),
+        character("Lucas", QuestionKey.IS_MALE, QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_SHORT_HAIR, QuestionKey.HAS_CURLY_HAIR),
+        character("Martin", QuestionKey.IS_MALE, QuestionKey.HAS_HAT, QuestionKey.USES_GLASSES, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_SHORT_HAIR, QuestionKey.HAS_STRAIGHT_HAIR),
+        character("Adrian", QuestionKey.IS_MALE, QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_SHORT_HAIR, QuestionKey.HAS_CURLY_HAIR),
+        character("Sergio", QuestionKey.IS_MALE, QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_SHORT_HAIR, QuestionKey.HAS_STRAIGHT_HAIR),
+        character("Pablo", QuestionKey.IS_MALE, QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_SHORT_HAIR, QuestionKey.HAS_STRAIGHT_HAIR),
+        character("Hugo", QuestionKey.IS_MALE, QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_SHORT_HAIR, QuestionKey.HAS_STRAIGHT_HAIR),
+        character("Ruben", QuestionKey.IS_MALE, QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_SHORT_HAIR, QuestionKey.HAS_CURLY_HAIR),
+        character("Cesar", QuestionKey.IS_MALE, QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_SHORT_HAIR, QuestionKey.HAS_STRAIGHT_HAIR),
+        character("Javier", QuestionKey.IS_MALE, QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_SHORT_HAIR, QuestionKey.HAS_STRAIGHT_HAIR),
+        character("Guillermo", QuestionKey.IS_MALE, QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_SHORT_HAIR, QuestionKey.HAS_CURLY_HAIR),
+        character("Alvaro", QuestionKey.IS_MALE, QuestionKey.USES_GLASSES, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_SHORT_HAIR, QuestionKey.HAS_STRAIGHT_HAIR),
+        character("Ivan", QuestionKey.IS_MALE, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_SHORT_HAIR, QuestionKey.HAS_CURLY_HAIR),
+        character("Raul", QuestionKey.IS_MALE, QuestionKey.HAS_BEARD, QuestionKey.HAS_EARRINGS, QuestionKey.HAS_SHORT_HAIR, QuestionKey.HAS_CURLY_HAIR),
+        character("Leo", QuestionKey.IS_MALE, QuestionKey.IS_BALD, QuestionKey.USES_GLASSES),
+        character("Gabriel", QuestionKey.IS_MALE, QuestionKey.HAS_SHORT_HAIR, QuestionKey.HAS_STRAIGHT_HAIR),
+        character("Miguel", QuestionKey.IS_MALE, QuestionKey.IS_BALD)
     );
 
     private final List<CharacterCard> characters;
@@ -71,7 +69,7 @@ public class CharacterCatalog {
         List<CharacterCard> list = new ArrayList<>();
         for (int i = 1; i <= DEFINITIONS.size(); i++) {
             CharacterDefinition definition = DEFINITIONS.get(i - 1);
-            String imageUrl = "/characters/png/" + definition.imageFile();
+            String imageUrl = "/characters/png/char-" + String.format("%02d", i) + ".png";
             list.add(new CharacterCard("char-" + i, definition.displayName(), imageUrl, Set.copyOf(definition.attributes())));
         }
         return list;
@@ -82,13 +80,9 @@ public class CharacterCatalog {
             throw new IllegalStateException("Character catalog must define exactly 37 characters");
         }
 
-        Set<String> imageFiles = new HashSet<>();
         Set<String> displayNames = new HashSet<>();
 
         for (CharacterDefinition definition : DEFINITIONS) {
-            if (!imageFiles.add(definition.imageFile())) {
-                throw new IllegalStateException("Duplicated image file in character catalog: " + definition.imageFile());
-            }
             if (!displayNames.add(definition.displayName())) {
                 throw new IllegalStateException("Duplicated display name in character catalog: " + definition.displayName());
             }
@@ -96,58 +90,40 @@ public class CharacterCatalog {
             boolean male = definition.attributes().contains(QuestionKey.IS_MALE);
             boolean female = definition.attributes().contains(QuestionKey.IS_FEMALE);
             if (male == female) {
-                throw new IllegalStateException("Each character must have exactly one gender: " + definition.imageFile());
+                throw new IllegalStateException("Each character must have exactly one gender: " + definition.displayName());
             }
 
-            String normalizedFile = definition.imageFile().toLowerCase();
-            if (normalizedFile.startsWith("chica-") && !female) {
-                throw new IllegalStateException("Female image must contain IS_FEMALE: " + definition.imageFile());
+            boolean bald = definition.attributes().contains(QuestionKey.IS_BALD);
+            boolean longHair = definition.attributes().contains(QuestionKey.HAS_LONG_HAIR);
+            boolean shortHair = definition.attributes().contains(QuestionKey.HAS_SHORT_HAIR);
+            boolean straightHair = definition.attributes().contains(QuestionKey.HAS_STRAIGHT_HAIR);
+            boolean curlyHair = definition.attributes().contains(QuestionKey.HAS_CURLY_HAIR);
+
+            if (bald) {
+                if (longHair || shortHair || straightHair || curlyHair) {
+                    throw new IllegalStateException("Bald character cannot include hair attributes: " + definition.displayName());
+                }
+                continue;
             }
-            if (normalizedFile.startsWith("chico-") && !male) {
-                throw new IllegalStateException("Male image must contain IS_MALE: " + definition.imageFile());
+
+            if (longHair == shortHair) {
+                throw new IllegalStateException("Character must have exactly one hair length attribute: " + definition.displayName());
+            }
+            if (straightHair == curlyHair) {
+                throw new IllegalStateException("Character must have exactly one hair texture attribute: " + definition.displayName());
             }
         }
     }
 
-    private static CharacterDefinition female(String imageFile, String displayName, QuestionKey... extra) {
-        Set<QuestionKey> attributes = EnumSet.of(QuestionKey.IS_FEMALE);
-        for (QuestionKey key : extra) {
-            attributes.add(key);
+    private static CharacterDefinition character(String displayName, QuestionKey... attributes) {
+        Set<QuestionKey> values = new HashSet<>();
+        for (QuestionKey key : attributes) {
+            values.add(key);
         }
-        normalizeHairAttributes(attributes, QuestionKey.HAS_LONG_HAIR);
-        return new CharacterDefinition(imageFile, displayName, attributes);
+        return new CharacterDefinition(displayName, values);
     }
 
-    private static CharacterDefinition male(String imageFile, String displayName, QuestionKey... extra) {
-        Set<QuestionKey> attributes = EnumSet.of(QuestionKey.IS_MALE);
-        for (QuestionKey key : extra) {
-            attributes.add(key);
-        }
-        normalizeHairAttributes(attributes, QuestionKey.HAS_SHORT_HAIR);
-        return new CharacterDefinition(imageFile, displayName, attributes);
-    }
-
-    private static void normalizeHairAttributes(Set<QuestionKey> attributes, QuestionKey defaultLengthAttribute) {
-        if (attributes.contains(QuestionKey.IS_BALD)) {
-            attributes.remove(QuestionKey.HAS_LONG_HAIR);
-            attributes.remove(QuestionKey.HAS_SHORT_HAIR);
-            attributes.remove(QuestionKey.HAS_STRAIGHT_HAIR);
-            attributes.remove(QuestionKey.HAS_CURLY_HAIR);
-            return;
-        }
-
-        if (!attributes.contains(QuestionKey.HAS_LONG_HAIR) && !attributes.contains(QuestionKey.HAS_SHORT_HAIR)) {
-            attributes.add(defaultLengthAttribute);
-        }
-
-        if (attributes.contains(QuestionKey.HAS_CURLY_HAIR)) {
-            attributes.remove(QuestionKey.HAS_STRAIGHT_HAIR);
-        } else {
-            attributes.add(QuestionKey.HAS_STRAIGHT_HAIR);
-        }
-    }
-
-    private record CharacterDefinition(String imageFile, String displayName, Set<QuestionKey> attributes) {
+    private record CharacterDefinition(String displayName, Set<QuestionKey> attributes) {
     }
 }
 

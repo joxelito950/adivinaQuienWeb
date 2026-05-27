@@ -33,65 +33,74 @@ class CharacterCatalogTest {
             assertNotNull(card.imageUrl());
             assertTrue(card.imageUrl().startsWith("/characters/png/"));
             assertTrue(card.imageUrl().endsWith(".png"));
+            assertTrue(card.imageUrl().matches("/characters/png/char-\\d{2}\\.png"));
         });
 
-        var chico16 = cards.stream()
-            .filter(card -> "/characters/png/chico-16.png".equals(card.imageUrl()))
-                .findFirst()
-                .orElseThrow();
-        assertTrue(chico16.attributes().contains(QuestionKey.HAS_BEARD));
+        assertEquals("/characters/png/char-01.png", cards.getFirst().imageUrl());
+        assertEquals("/characters/png/char-37.png", cards.get(36).imageUrl());
 
-        var chica01 = cards.stream()
-                .filter(card -> "/characters/png/chica-01.png".equals(card.imageUrl()))
+        var ruben = cards.stream()
+            .filter(card -> "Ruben".equals(card.displayName()))
                 .findFirst()
                 .orElseThrow();
-        assertTrue(chica01.attributes().contains(QuestionKey.USES_GLASSES));
-        assertTrue(chica01.attributes().contains(QuestionKey.IS_FEMALE));
-        assertTrue(chica01.attributes().contains(QuestionKey.HAS_LONG_HAIR));
-        assertTrue(chica01.attributes().contains(QuestionKey.HAS_STRAIGHT_HAIR));
+        assertTrue(ruben.attributes().contains(QuestionKey.HAS_BEARD));
+        assertTrue(ruben.attributes().contains(QuestionKey.HAS_SHORT_HAIR));
+        assertTrue(ruben.attributes().contains(QuestionKey.HAS_CURLY_HAIR));
 
-        var chica27 = cards.stream()
-                .filter(card -> "/characters/png/chica-27.png".equals(card.imageUrl()))
+        var camila = cards.stream()
+                .filter(card -> "Camila".equals(card.displayName()))
                 .findFirst()
                 .orElseThrow();
-        assertTrue(chica27.attributes().contains(QuestionKey.HAS_HAT));
-        assertTrue(chica27.attributes().contains(QuestionKey.HAS_CURLY_HAIR));
+        assertTrue(camila.attributes().contains(QuestionKey.USES_GLASSES));
+        assertTrue(camila.attributes().contains(QuestionKey.IS_FEMALE));
+        assertTrue(camila.attributes().contains(QuestionKey.HAS_LONG_HAIR));
+        assertTrue(camila.attributes().contains(QuestionKey.HAS_STRAIGHT_HAIR));
 
-        var chico02 = cards.stream()
-                .filter(card -> "/characters/png/chico-02.png".equals(card.imageUrl()))
+        var luna = cards.stream()
+                .filter(card -> "Luna".equals(card.displayName()))
                 .findFirst()
                 .orElseThrow();
-        assertTrue(chico02.attributes().contains(QuestionKey.USES_GLASSES));
-        assertTrue(chico02.attributes().contains(QuestionKey.HAS_BEARD));
-        assertTrue(chico02.attributes().contains(QuestionKey.HAS_SHORT_HAIR));
+        assertTrue(luna.attributes().contains(QuestionKey.HAS_HAT));
+        assertTrue(luna.attributes().contains(QuestionKey.HAS_CURLY_HAIR));
 
-        var chico36 = cards.stream()
-                .filter(card -> "/characters/png/chico-36.png".equals(card.imageUrl()))
+        var juan = cards.stream()
+                .filter(card -> "Juan".equals(card.displayName()))
                 .findFirst()
                 .orElseThrow();
-        assertTrue(chico36.attributes().contains(QuestionKey.IS_BALD));
-        assertTrue(chico36.attributes().contains(QuestionKey.IS_MALE));
-        assertTrue(chico36.attributes().contains(QuestionKey.IS_BALD));
-        assertTrue(!chico36.attributes().contains(QuestionKey.HAS_SHORT_HAIR));
+        assertTrue(juan.attributes().contains(QuestionKey.USES_GLASSES));
+        assertTrue(juan.attributes().contains(QuestionKey.HAS_BEARD));
+        assertTrue(juan.attributes().contains(QuestionKey.HAS_SHORT_HAIR));
+
+        var miguel = cards.stream()
+                .filter(card -> "Miguel".equals(card.displayName()))
+                .findFirst()
+                .orElseThrow();
+        assertTrue(miguel.attributes().contains(QuestionKey.IS_BALD));
+        assertTrue(miguel.attributes().contains(QuestionKey.IS_MALE));
+        assertTrue(!miguel.attributes().contains(QuestionKey.HAS_SHORT_HAIR));
     }
 
     @Test
-    void catalogMaintainsGenderIntegrityByImagePrefix() {
+    void catalogMaintainsGenderAndHairIntegrity() {
         CharacterCatalog catalog = new CharacterCatalog();
         var cards = catalog.allCharacters();
 
         cards.forEach(card -> {
             boolean male = card.attributes().contains(QuestionKey.IS_MALE);
             boolean female = card.attributes().contains(QuestionKey.IS_FEMALE);
+            boolean bald = card.attributes().contains(QuestionKey.IS_BALD);
+            boolean longHair = card.attributes().contains(QuestionKey.HAS_LONG_HAIR);
+            boolean shortHair = card.attributes().contains(QuestionKey.HAS_SHORT_HAIR);
+            boolean straightHair = card.attributes().contains(QuestionKey.HAS_STRAIGHT_HAIR);
+            boolean curlyHair = card.attributes().contains(QuestionKey.HAS_CURLY_HAIR);
 
             assertTrue(male ^ female, "Each card must contain exactly one gender attribute");
 
-            String image = card.imageUrl().toLowerCase();
-            if (image.contains("/chica-")) {
-                assertTrue(female);
-            }
-            if (image.contains("/chico-")) {
-                assertTrue(male);
+            if (bald) {
+                assertTrue(!longHair && !shortHair && !straightHair && !curlyHair);
+            } else {
+                assertTrue(longHair ^ shortHair, "Non-bald characters must have one hair length");
+                assertTrue(straightHair ^ curlyHair, "Non-bald characters must have one hair texture");
             }
         });
     }
