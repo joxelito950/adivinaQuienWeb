@@ -10,7 +10,7 @@ import type { LogEntry } from '@/components/game/GameLog'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { getPlayerId } from '@/lib/player'
-import { QUESTION_LABELS } from '@/lib/questions'
+import { ACTIVE_QUESTION_KEYS, QUESTION_LABELS } from '@/lib/questions'
 import { createWsClient, WsClient } from '@/lib/ws-client'
 import {
   Board,
@@ -32,6 +32,7 @@ interface StoredGameSnapshot {
   yourSecretCharacterId: string
   firstTurnPlayerId: string
   opponentType: 'human' | 'dummy'
+  activeQuestionKeys?: string[]
 }
 
 interface OpponentQuestionSummary {
@@ -60,6 +61,19 @@ function readStoredSnapshot(gameId: string): StoredGameSnapshot | null {
   }
 }
 
+function parseQuestionKeysOrFallback(keys?: string[]): QuestionKey[] {
+  if (!Array.isArray(keys) || keys.length === 0) {
+    return ACTIVE_QUESTION_KEYS
+  }
+
+  const validKeys = new Set(Object.values(QuestionKey))
+  const parsed = keys
+    .map((key) => String(key).trim().toUpperCase())
+    .filter((key): key is QuestionKey => validKeys.has(key as QuestionKey))
+
+  return parsed.length > 0 ? parsed : ACTIVE_QUESTION_KEYS
+}
+
 export default function GamePage({ params }: PageProps) {
   const { gameId } = use(params)
   const router = useRouter()
@@ -86,6 +100,7 @@ export default function GamePage({ params }: PageProps) {
   const [resolvedQuestionAnswers, setResolvedQuestionAnswers] = useState<QuestionAnswerMap>({})
   const [eliminatedCharacterIds, setEliminatedCharacterIds] = useState<string[]>([])
   const [candidateCount, setCandidateCount] = useState<number | null>(null)
+  const [availableQuestionKeys] = useState<QuestionKey[]>(() => parseQuestionKeysOrFallback(snapshot?.activeQuestionKeys))
   const [dismissEndgameOverlay, setDismissEndgameOverlay] = useState(false)
 
   const myPlayerId = playerIdRef.current
@@ -534,6 +549,7 @@ export default function GamePage({ params }: PageProps) {
           <ActionPanel
             isMyTurn={isMyTurn && gameStatus === 'in_progress' && !hasPendingQuestion}
             activeTab={activeTab}
+            availableQuestionKeys={availableQuestionKeys}
             onTabChange={(tab) => {
               setActiveTab(tab)
               if (tab !== 'guess') {

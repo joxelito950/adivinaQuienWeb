@@ -351,6 +351,7 @@ public class GameWebSocketHandler extends TextWebSocketHandler {
         payload.put("board", Map.of("rows", board.rows(), "cols", board.cols(), "characters", characters));
         payload.put("yourSecretCharacterId", game.getSecretByPlayer().get(participant.playerId()));
         payload.put("firstTurnPlayerId", game.getCurrentTurnPlayerId());
+        payload.put("activeQuestionKeys", questionPolicy.activeQuestions().stream().map(QuestionKey::name).toList());
 
         send(session, "game_started", null, payload);
     }

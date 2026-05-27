@@ -106,6 +106,7 @@ export type GameStartedEvent = WireMessage<'game_started', {
   board:                 Board
   yourSecretCharacterId: string
   firstTurnPlayerId:     string
+  activeQuestionKeys?:   string[]
 }>
 
 export type TurnChangedEvent = WireMessage<'turn_changed', {

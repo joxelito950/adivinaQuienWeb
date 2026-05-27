@@ -101,18 +101,19 @@ describe('protocol helpers', () => {
             {
               characterId: 'char-1',
               displayName: 'Character 1',
-              imageUrl: '/characters/png/chica-01.png',
+              imageUrl: '/characters/png/char-01.png',
             },
           ],
         },
         yourSecretCharacterId: 'char-1',
         firstTurnPlayerId: 'p1',
+        activeQuestionKeys: ['USES_GLASSES', 'HAS_BEARD'],
       },
     })
 
     const parsed = parseServerMessage(raw)
     const payload = parsed?.payload as { board?: { characters?: Array<{ imageUrl?: string }> } }
-    expect(payload.board?.characters?.[0]?.imageUrl).toBe('/characters/png/chica-01.png')
+    expect(payload.board?.characters?.[0]?.imageUrl).toBe('/characters/png/char-01.png')
   })
 
   it('parses auto_action_triggered payloads', () => {

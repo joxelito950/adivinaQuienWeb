@@ -17,6 +17,7 @@ interface PendingQuestion {
 interface ActionPanelProps {
   isMyTurn:                boolean
   activeTab:               ActionTab
+  availableQuestionKeys?:  QuestionKey[]
   onTabChange:             (tab: ActionTab) => void
   pendingQuestion?:        PendingQuestion | null
   selectedGuessCharacterName?: string | null
@@ -30,6 +31,7 @@ interface ActionPanelProps {
 export function ActionPanel({
   isMyTurn,
   activeTab,
+  availableQuestionKeys = ACTIVE_QUESTION_KEYS,
   onTabChange,
   pendingQuestion = null,
   selectedGuessCharacterName = null,
@@ -136,7 +138,7 @@ export function ActionPanel({
       {/* Question options */}
       {activeTab === 'question' && (
         <div className="grid grid-cols-1 gap-2 xs:grid-cols-2">
-          {ACTIVE_QUESTION_KEYS.map((key) => (
+          {availableQuestionKeys.map((key) => (
             (() => {
               const isResolved = Object.prototype.hasOwnProperty.call(resolvedQuestionAnswers, key)
               const resolvedAnswer = resolvedQuestionAnswers[key]
