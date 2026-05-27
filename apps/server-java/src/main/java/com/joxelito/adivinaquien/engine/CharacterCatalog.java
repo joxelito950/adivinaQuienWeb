@@ -245,6 +245,7 @@ public class CharacterCatalog {
                     QuestionKey.HAS_SHORT_HAIR,
                     QuestionKey.HAS_STRAIGHT_HAIR,
                     QuestionKey.HAS_EARRINGS,
+                    QuestionKey.IS_MALE,
                     QuestionKey.HAS_FAIR_SKIN),
             character(
                     28,
