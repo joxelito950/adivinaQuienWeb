@@ -73,6 +73,7 @@ export function CharacterCard({
           : isInteractive
           ? 'cursor-pointer border-slate-700 bg-slate-800 hover:border-slate-500 hover:bg-slate-700 active:scale-[0.985]'
           : 'border-slate-700 bg-slate-800',
+        isSecret && !isEliminated && 'border-yellow-300 ring-2 ring-yellow-300/90 shadow-lg shadow-yellow-400/30',
       )}
     >
       {onZoomClick && (
@@ -141,8 +142,8 @@ export function CharacterCard({
 
       {/* Indicador de personaje secreto del jugador */}
       {isSecret && (
-        <span className="absolute right-1 top-1 rounded-full bg-brand-500 px-1 py-0.5 text-[9px] font-bold text-white leading-none">
-          TÚ
+        <span className="absolute right-1.5 top-1.5 z-20 rounded-full border border-yellow-200 bg-yellow-300 px-2 py-1 text-[10px] font-extrabold tracking-wide text-slate-900 shadow-md shadow-yellow-400/40 leading-none sm:text-xs">
+          ⭐ TU PERSONAJE
         </span>
       )}
 
