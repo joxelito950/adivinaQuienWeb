@@ -41,7 +41,7 @@ export function GameLog({ entries, className }: GameLogProps) {
               La partida acaba de comenzar.
             </p>
           ) : (
-            <ol className="flex flex-col gap-2">
+            <ol className="flex flex-col-reverse gap-2">
               {entries.map((entry, i) => (
                 <li
                   key={i}
