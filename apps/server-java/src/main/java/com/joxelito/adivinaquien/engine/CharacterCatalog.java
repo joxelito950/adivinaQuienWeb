@@ -317,6 +317,14 @@ public class CharacterCatalog {
                     QuestionKey.HAS_LONG_HAIR,
                     QuestionKey.HAS_STRAIGHT_HAIR,
                     QuestionKey.IS_FEMALE,
+                    QuestionKey.HAS_FAIR_SKIN),
+            character(
+                    38,
+                    "Iris",
+                    QuestionKey.HAS_SHORT_HAIR,
+                    QuestionKey.HAS_STRAIGHT_HAIR,
+                    QuestionKey.IS_FEMALE,
+                    QuestionKey.HAS_EARRINGS,
                     QuestionKey.HAS_FAIR_SKIN));
 
     private final List<CharacterCard> characters;
@@ -342,8 +350,8 @@ public class CharacterCatalog {
     }
 
     private static void validateDefinitions() {
-        if (DEFINITIONS.size() != 37) {
-            throw new IllegalStateException("Character catalog must define exactly 37 characters");
+        if (DEFINITIONS.size() != 38) {
+            throw new IllegalStateException("Character catalog must define exactly 38 characters");
         }
 
         Set<String> displayNames = new HashSet<>();
@@ -390,7 +398,7 @@ public class CharacterCatalog {
             }
         }
 
-        for (int expectedId = 1; expectedId <= 37; expectedId++) {
+        for (int expectedId = 1; expectedId <= 38; expectedId++) {
             if (!ids.contains(expectedId)) {
                 throw new IllegalStateException("Character catalog must contain id: " + expectedId);
             }
